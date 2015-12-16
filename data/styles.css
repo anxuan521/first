@@ -9,6 +9,8 @@
 }
 ._形状 {
 }
+.box_2 {
+}
 ._图片 {
   color:#000000;
 }
@@ -49,6 +51,14 @@
 }
 ._文本段落 {
   text-align:left;
+}
+.arrow {
+}
+.sticky_2 {
+  text-align:left;
+}
+.marker {
+  color:#FFFFFF;
 }
 ._水平线 {
 }
