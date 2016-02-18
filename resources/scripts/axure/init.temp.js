@@ -13,6 +13,30 @@
             notes: $ax.pageData.page.notes
         };
 
+        var anns = [];
+        $ax('*').each(function (dObj, elementId) {
+            pushAnnotation(dObj, elementId);
+        });
+
+        function pushAnnotation(dObj, elementId) {
+            var ann = dObj.annotation;
+            if(ann) {
+                ann["id"] = elementId;
+                ann["label"] = dObj.label + " (" + dObj.friendlyType + ")";
+                anns.push(ann);
+            }
+
+            if(dObj.type == 'repeater') {
+                if(dObj.objects) {
+                    for(var i = 0, len = dObj.objects.length; i < len; i++) {
+                        pushAnnotation(dObj.objects[i]);
+                    }
+                }
+            }
+        }
+
+        pageData.widgetNotes = anns;
+
         //only trigger the page.data setting if the window is on the mainframe
         var isMainFrame = false;
         try {

@@ -102,7 +102,9 @@ $axure.internal(function($ax) {
         window.scrollTo(scrollX, scrollY);
     };
 
-    $ax.annotation.InitializeAnnotations = function(query) {
+    $ax.annotation.InitializeAnnotations = function (query) {
+        if(!$ax.document.configuration.showAnnotations) return;
+
         query.each(function(dObj, elementId) {
             if(!dObj.annotation) return;
 
@@ -120,7 +122,7 @@ $axure.internal(function($ax) {
                     $('#' + textId).append("<div id='" + elementId + "Note' class='annnoteimage' ></div>");
                 }
                 $('#' + elementId + 'Note').click(function(e) {
-                    $ax.annotation.ToggleWorkflow(e, elementId, 300, 150, false);
+                    $ax.annotation.ToggleWorkflow(e, elementId, 300, 200, false);
                     return false;
                 });
 
@@ -134,10 +136,12 @@ $axure.internal(function($ax) {
                     $('#' + elementId + "_ann").append("<div id='" + elementId + "Note' class='annnoteimage'></div>");
                 }
                 $('#' + elementId + 'Note').click(function(e) {
-                    $ax.annotation.ToggleWorkflow(e, elementId, 300, 150, false);
+                    $ax.annotation.ToggleWorkflow(e, elementId, 300, 200, false);
                     return false;
                 });
             }
+
+            $('#' + elementId + 'Note.annnoteimage').append("<div class='annnoteline'></div><div class='annnoteline'></div><div class='annnoteline'></div>");
         });
     };
 

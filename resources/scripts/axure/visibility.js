@@ -141,6 +141,7 @@
         }
 
         var wrappedOffset = { left: 0, top: 0 };
+        var visibleWrapped = wrapped;
         if(needContainer) {
             var childObj = $obj(childId);
             if(options.cull) {
@@ -177,13 +178,19 @@
             //    containerHeight = options.cull.height();
             //}
 
-            var containerId = childId + '_container';
+            var containerId = $ax.visibility.applyWidgetContainer(childId);
 //            var container = _makeContainer(containerId, options.cull || boundingRectangle, isFullWidth, options.easing == 'flip', wrappedOffset, options.containerExists);
             var container = _makeContainer(containerId, containerWidth, containerHeight, isFullWidth, options.easing == 'flip', wrappedOffset, options.containerExists);
 
             if(options.containInner) {
                 wrapped = _wrappedChildren(containerExists ? $(child.children()[0]) : child);
-                completeTotal = wrapped.length;
+
+                // Filter for visibile wrapped children
+                visibleWrapped = [];
+                for (var i = 0; i < wrapped.length; i++) if($ax.visibility.IsVisible(wrapped[i])) visibleWrapped.push(wrapped[i]);
+                visibleWrapped = $(visibleWrapped);
+
+                completeTotal = visibleWrapped.length;
                 if(!containerExists) container.prependTo(child);
 
                 // Offset items if necessary
@@ -201,8 +208,8 @@
             if(!containerExists) wrapped.appendTo(container);
 
             if (options.value && options.containInner) {
-                //has to set children first because flip to show needs childerns invisible 
-                _setAllVisible(wrapped, false);
+                //has to set children first because flip to show needs childerns invisible
+                _setAllVisible(visibleWrapped, false);
                 _updateChildAlignment(childId);
                 _setAllVisible(child, true);
             }
@@ -223,7 +230,7 @@
 
                 if(options.containInner && !options.value) {
                     _setAllVisible(child, false);
-                    _setAllVisible(wrapped, true);
+                    _setAllVisible(visibleWrapped, true);
                 }
 
                 if(containerExists) {
@@ -260,6 +267,22 @@
             }
         };
 
+        // Nothing actually being animated, all wrapped elements invisible
+        if(!visibleWrapped.length) {
+            if(!options.easing || options.easing == 'none') {
+                $ax.visibility.SetIdVisible(childId, options.value);
+                completeTotal = 1;
+                onComplete();
+            } else {
+                window.setTimeout(function() {
+                    completeCount = completeTotal - 1;
+                    onComplete();
+                },options.duration);
+            }
+
+            return;
+        }
+
         if(!options.easing || options.easing == 'none') {
             $ax.visibility.SetIdVisible(childId, options.value);
             completeTotal = 1;
@@ -267,24 +290,24 @@
         } else if(options.easing == 'fade') {
             if(options.value) {
                 if(preserveScroll) {
-                    wrapped.css('opacity', 0);
-                    wrapped.css('visibility', 'visible');
-                    wrapped.css('display', '');
+                    visibleWrapped.css('opacity', 0);
+                    visibleWrapped.css('visibility', 'visible');
+                    visibleWrapped.css('display', '');
                     _tryResumeScrollForDP(childId);
-                    wrapped.animate({ opacity: 1 }, {
+                    visibleWrapped.animate({ opacity: 1 }, {
                         duration: options.duration,
                         easing: 'swing',
                         queue: false,
                         complete: function() {
                             $ax.visibility.SetIdVisible(childId, true);
-                            wrapped.css('opacity', '');
+                            visibleWrapped.css('opacity', '');
                             onComplete();
                         }
                     });
                 } else {
                     // Can't use $ax.visibility.SetIdVisible, because we only want to set visible, we don't want to display, fadeIn will handle that.
-                    wrapped.css('visibility', 'visible');
-                    wrapped.fadeIn({
+                    visibleWrapped.css('visibility', 'visible');
+                    visibleWrapped.fadeIn({
                         queue: false,
                         duration: options.duration, 
                         complete: onComplete
@@ -292,9 +315,9 @@
                 }
             } else {
                 // Fading here is being strange...
-                wrapped.animate({ opacity: 0 }, { duration: options.duration, easing: 'swing', queue: false, complete: function() {
+                visibleWrapped.animate({ opacity: 0 }, { duration: options.duration, easing: 'swing', queue: false, complete: function() {
                     $ax.visibility.SetIdVisible(childId, false);
-                    wrapped.css('opacity', '');
+                    visibleWrapped.css('opacity', '');
 
                     onComplete();
                 }});
@@ -348,10 +371,7 @@
                 }
 
                 var onFlipShowComplete = function() {
-                    child.css({
-                        'display': '',
-                        'visibility': 'visible'
-                    });
+                    $ax.visibility.SetIdVisible(childId, true);
 
                     wrapped.insertBefore(innerContainer);
                     innerContainer.remove();
@@ -369,7 +389,7 @@
                     'visibility': 'visible'
                 });
 
-                wrapped.css({
+                visibleWrapped.css({
                     'display': '',
                     'visibility': 'visible'
                 });
@@ -404,10 +424,8 @@
 
                 var onFlipHideComplete = function() {
                     wrapped.insertBefore(innerContainer);
-                    child.css({
-                        'display': 'none',
-                        'visibility': 'hidden'
-                    });
+                    $ax.visibility.SetIdVisible(childId, false);
+
                     innerContainer.remove();
 
                     onComplete();
@@ -427,26 +445,28 @@
             }
         } else {
             if(options.value) {
-                _slideStateIn(childId, childId, options.easing, options.direction, options.duration, size, false, onComplete, wrapped, preserveScroll);
+                _slideStateIn(childId, childId, options, size, false, onComplete, visibleWrapped, preserveScroll);
             } else {
                 var tops = [];
                 var lefts = [];
-                for(var i = 0; i < wrapped.length; i++) {
-                    var currWrapped = $(wrapped[i]);
+                for(var i = 0; i < visibleWrapped.length; i++) {
+                    var currWrapped = $(visibleWrapped[i]);
                     tops.push(currWrapped.css('top'));
                     lefts.push(currWrapped.css('left'));
                 }
 
                 var onOutComplete = function () {
-                    for(i = 0; i < wrapped.length; i++) {
-                        currWrapped = $(wrapped[i]);
+                    //bring back SetIdVisible on childId for hiding lightbox
+                    $ax.visibility.SetIdVisible(childId, false);
+                    for(i = 0; i < visibleWrapped.length; i++) {
+                        currWrapped = $(visibleWrapped[i]);
                         $ax.visibility.SetIdVisible(currWrapped.attr('id'), false);
                         currWrapped.css('top', tops[i]);
                         currWrapped.css('left', lefts[i]);
                     }
                     onComplete();
                 };
-                _slideStateOut(size, childId, options.easing, options.direction, options.duration, onOutComplete, wrapped);
+                _slideStateOut(size, childId, options, onOutComplete, visibleWrapped);
             }
         }
         // If showing, go through all rich text objects inside you, and try to redo alignment of them
@@ -465,11 +485,12 @@
         }
     };
 
-    var _wrappedChildren = function(child) {
-        var children = child.children();
-        var valid = [];
-        for(var i = 0; i < children.length; i++) if($ax.visibility.IsVisible(children[i])) valid.push(children[i]);
-        return $(valid);
+    var _wrappedChildren = function (child) {
+        return child.children();
+        //var children = child.children();
+        //var valid = [];
+        //for(var i = 0; i < children.length; i++) if($ax.visibility.IsVisible(children[i])) valid.push(children[i]);
+        //return $(valid);
     };
 
     var _setRotateTransformation = function(elementsToSet, transformValue, elementParent, flipCompleteCallback, flipDurationMs) {
@@ -496,8 +517,7 @@
     };
 
     $ax.visibility.GetPanelState = function(id) {
-        var children = $jobj(id).children();
-        if(containerCount[id]) children = children.children().children();
+        var children = $ax.visibility.getRealChildren($jobj(id).children());
         for(var i = 0; i < children.length; i++) {
             if(children[i].style && $ax.visibility.IsVisible(children[i])) return children[i].id;
         }
@@ -611,7 +631,7 @@
             }
 
             var container = $('<div></div>');
-            container.attr('id', id + '_container');
+            container.attr('id', $ax.visibility.applyWidgetContainer(id));
             container.css(css);
             //container.append(jobj.children());
             jobj.append(container);
@@ -622,7 +642,7 @@
                 for(var i = 0; i < children.length; i++) {
                     var child = $(children[i]);
                     var childContainer = $('<div></div>');
-                    childContainer.attr('id', child.attr('id') + '_container');
+                    childContainer.attr('id', $ax.visibility.applyWidgetContainer(child.attr('id')));
                     childContainer.css(css);
                     child.after(childContainer);
                     childContainer.append(child);
@@ -639,8 +659,16 @@
                     };
                     if($ax.getTypeFromElementId(childId) == $ax.constants.LAYER_TYPE) {
                         _pushContainer(childId, false);
-                        $jobj(childId + '_container').css(cssChange);
-                    } else $jobj(childId).css(cssChange);
+                        $ax.visibility.applyWidgetContainer(childId, true).css(cssChange);
+                    } else {
+                        var jobj = $jobj(childId);
+                        if ($ax.public.fn.isCompoundVectorHtml(jobj[0])) {
+                            var componentIds = $ax('#' + childId).getChildren()[0].children;
+                            for (var j = 0; j < componentIds.length; j++) {
+                                if(componentIds[j].indexOf(childId + 'p') >= 0) $jobj(componentIds[j]).css(cssChange);
+                            }
+                        } else jobj.css(cssChange);
+                    }
 
                     container.append($jobj(childId));
                 }
@@ -656,7 +684,7 @@
         if(count != 0) return;
 
         var jobj = $jobj(id);
-        var container = $jobj(id + '_container');
+        var container = $ax.visibility.applyWidgetContainer(id, true);
         jobj.append(container.children());
         container.remove();
 
@@ -680,9 +708,17 @@
                     top: '+=' + top
                 };
                 if($ax.getTypeFromElementId(childId) == $ax.constants.LAYER_TYPE) {
-                    $jobj(childId + '_container').css(cssChange);
+                    $ax.visibility.applyWidgetContainer(childId, true).css(cssChange);
                     _popContainer(childId, false);
-                } else $jobj(childIds[i]).css(cssChange);
+                } else {
+                    var jobj = $jobj(childId);
+                    if ($ax.public.fn.isCompoundVectorHtml(jobj[0])) {
+                        var componentIds = $ax('#' + childId).getChildren()[0].children;
+                        for (var j = 0; j < componentIds.length; j++) {
+                            if (componentIds[j].indexOf(childId + 'p') >= 0) $jobj(componentIds[j]).css(cssChange);
+                        }
+                    } else jobj.css(cssChange);
+                }
             }
         }
     };
@@ -737,11 +773,44 @@
         return container;
     };
 
-    var CONTAINER_SUFFIX = "_container";
+    var CONTAINER_SUFFIX = '_container';
+    var CONTAINER_INNER = CONTAINER_SUFFIX + '_inner';
     _visibility.getWidgetFromContainer = function(id) {
         var containerIndex = id.indexOf(CONTAINER_SUFFIX);
         if(containerIndex == -1) return id;
         return id.substr(0, containerIndex) + id.substr(containerIndex + CONTAINER_SUFFIX.length);
+    };
+
+    // Apply container to widget id if necessary.
+    // returnJobj: True if you want the jquery object rather than id returned
+    // skipCheck: True if you want the query returned reguardless of container existing
+    // checkInner: True if inner container should be checked
+    _visibility.applyWidgetContainer = function (id, returnJobj, skipCheck, checkInner) {
+        // If container exists, just return (return query if requested)
+        if(id.indexOf(CONTAINER_SUFFIX) != -1) return returnJobj ? $jobj(id) : id;
+
+        // Get desired id, and return it if query is not desired
+        var containerId = $ax.repeater.applySuffixToElementId(id, checkInner ? CONTAINER_INNER : CONTAINER_SUFFIX);
+        if(!returnJobj) return containerId;
+
+        // If skipping check or container exists, just return innermost container requested
+        var container = $jobj(containerId);
+        if(skipCheck || container.length) return container;
+        // If inner container was not checked, then no more to check, return query for widget
+        if(!checkInner) return $jobj(id);
+
+        // If inner container was checked, check for regular container still
+        container = $jobj($ax.repeater.applySuffixToElementId(id, CONTAINER_SUFFIX));
+        return container.length ? container : $jobj(id);
+    };
+
+    _visibility.isContainer = function(id) {
+        return id.indexOf(CONTAINER_SUFFIX) != -1;
+    };
+
+    _visibility.getRealChildren = function(query) {
+        while(query.length && $(query[0]).attr('id').indexOf(CONTAINER_SUFFIX) != -1) query = query.children();
+        return query;
     };
 
     var _getFixedCss = function(css, rect, fixedInfo, isFullWidth) {
@@ -772,22 +841,24 @@
         }
     };
 
-    var _slideStateOut = function(container, stateId, easingOut, directionOut, durationOut, onComplete, jobj) {
+    var _slideStateOut = function (container, stateId, options, onComplete, jobj) {
+        var directionOut = options.direction;
         var width = container.width();
         var height = container.height();
 
         if(directionOut == "right") {
-            $ax.move.MoveWidget(stateId, width, 0, easingOut, durationOut, false, onComplete, false, jobj);
+            $ax.move.MoveWidget(stateId, width, 0, options, false, onComplete, false, jobj);
         } else if(directionOut == "left") {
-            $ax.move.MoveWidget(stateId, -width, 0, easingOut, durationOut, false, onComplete, false, jobj);
+            $ax.move.MoveWidget(stateId, -width, 0, options, false, onComplete, false, jobj);
         } else if(directionOut == "up") {
-            $ax.move.MoveWidget(stateId, 0, -height, easingOut, durationOut, false, onComplete, false, jobj);
+            $ax.move.MoveWidget(stateId, 0, -height, options, false, onComplete, false, jobj);
         } else if(directionOut == "down") {
-            $ax.move.MoveWidget(stateId, 0, height, easingOut, durationOut, false, onComplete, false, jobj);
+            $ax.move.MoveWidget(stateId, 0, height, options, false, onComplete, false, jobj);
         }
     };
 
-    var _slideStateIn = function(id, stateId, easingIn, directionIn, durationIn, container, makePanelVisible, onComplete, jobj, preserveScroll) {
+    var _slideStateIn = function (id, stateId, options, container, makePanelVisible, onComplete, jobj, preserveScroll) {
+        var directionIn = options.direction;
         var width = container.width();
         var height = container.height();
 
@@ -811,13 +882,13 @@
 
         if(preserveScroll) _tryResumeScrollForDP(id);
         if(directionIn == "right") {
-            $ax.move.MoveWidget(stateId, width, 0, easingIn, durationIn, false, onComplete, false, jobj);
+            $ax.move.MoveWidget(stateId, width, 0, options, false, onComplete, false, jobj);
         } else if(directionIn == "left") {
-            $ax.move.MoveWidget(stateId, -width, 0, easingIn, durationIn, false, onComplete, false, jobj);
+            $ax.move.MoveWidget(stateId, -width, 0, options, false, onComplete, false, jobj);
         } else if(directionIn == "up") {
-            $ax.move.MoveWidget(stateId, 0, -height, easingIn, durationIn, false, onComplete, false, jobj);
+            $ax.move.MoveWidget(stateId, 0, -height, options, false, onComplete, false, jobj);
         } else if(directionIn == "down") {
-            $ax.move.MoveWidget(stateId, 0, height, easingIn, durationIn, false, onComplete, false, jobj);
+            $ax.move.MoveWidget(stateId, 0, height, options, false, onComplete, false, jobj);
         }
     };
 
@@ -828,17 +899,16 @@
     };
 
     $ax.visibility.GetPanelStateCount = function(id) {
-        var states = $jobj(id).children();
-        if(containerCount[id]) states = states.children();
-        return states.length;
+        return $ax.visibility.getRealChildren($jobj(id).children()).length;
     };
 
-    var _bringPanelStateToFront = function(dpId, stateid) {
-        if (containerCount[dpId]) {
-            stateid = stateid + '_container';
-            dpId = dpId + '_container';
+    var _bringPanelStateToFront = function (dpId, stateid) {
+        var panel = $jobj(dpId);
+        if(containerCount[dpId]) {
+            stateid = $ax.visibility.applyWidgetContainer(stateid);
+            panel = $ax.visibility.applyWidgetContainer(dpId, true, false, true);
         }
-        $('#' + stateid).appendTo($('#' + dpId));
+        $jobj(stateid).appendTo(panel);
         //when bring a panel to front, it will be focused, and the previous front panel should fire blur event if it's lastFocusedClickableSelector
         //ie(currently 11) and firefox(currently 34) doesn't fire blur event, this is the hack to fire it manually
         if((IE || FIREFOX) && window.lastFocusedClickable && window.lastFocusedControl == window.lastFocusedClickable.id) {
@@ -892,12 +962,16 @@
     };
 
     $ax.visibility.clearLimboAndHiddenIds = function(ids) {
-        for(var i = 0; i < ids.length; i++) delete _limboIds[ids[i]];
+        for(var i = 0; i < ids.length; i++) {
+            var scriptId = $ax.repeater.getScriptIdFromElementId(ids[i]);
+            delete _limboIds[scriptId];
+        }
     };
 
-    $ax.visibility.resetLimboAndHiddenToDefaults = function() {
+    $ax.visibility.resetLimboAndHiddenToDefaults = function (query) {
+        if(!query) query = $ax('*');
         _clearLimboAndHidden();
-        _addLimboAndHiddenIds(_defaultLimbo, _defaultHidden, $ax('*'));
+        _addLimboAndHiddenIds(_defaultLimbo, _defaultHidden, query);
     };
 
     $ax.visibility.isScriptIdLimbo = function(scriptId) {

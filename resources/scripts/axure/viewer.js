@@ -19,6 +19,21 @@ $axure.internal(function ($ax) {
         }
     });
 
+    var lastSelectedWidgetNote;
+    $ax.messageCenter.addMessageListener(function (message, data) {
+        //If annotation toggle message received from sitemap, toggle footnotes
+        if(message == 'toggleSelectWidgetNote') {
+            if(lastSelectedWidgetNote == data) {
+                $('#' + lastSelectedWidgetNote).removeClass('widgetNoteSelected');
+                return;
+            }
+
+            if(lastSelectedWidgetNote) $('#' + lastSelectedWidgetNote).removeClass('widgetNoteSelected');
+            $('#' + data).addClass('widgetNoteSelected');
+            lastSelectedWidgetNote = data;
+        }
+    });
+
     var highlightEnabled = false;
     $ax.messageCenter.addMessageListener(function(message, data) {
         if(message == 'highlightInteractive') {
@@ -38,7 +53,7 @@ $axure.internal(function ($ax) {
                 userAgentString.indexOf('msie 7.') != -1 ||
                 userAgentString.indexOf('msie 6.') != -1;
 
-        var pulsateClassName = isIEpre10 ? 'legacyPulsateBorder' : 'pulsateBorder';
+        var pulsateClassName = 'legacyPulsateBorder';
 
         //Find all widgets with a defined userTriggeredEventName specified in the array above
         var $matchingElements = query.filter(function(obj) {

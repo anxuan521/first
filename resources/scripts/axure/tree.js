@@ -67,7 +67,7 @@ $axure.internal(function($ax) {
 
     $ax.tree.ExpandNode = function(nodeId, childContainerId, plusMinusId) {
         var container = window.document.getElementById(childContainerId);
-        if($ax.visibility.IsVisible(container)) return;
+        if(!container || $ax.visibility.IsVisible(container)) return;
         $ax.visibility.SetVisible(container, true);
 
         if(plusMinusId != '') $ax.style.SetWidgetSelected(plusMinusId, true);
@@ -100,7 +100,7 @@ $axure.internal(function($ax) {
 
     $ax.tree.CollapseNode = function(nodeId, childContainerId, plusMinusId) {
         var container = window.document.getElementById(childContainerId);
-        if(!$ax.visibility.IsVisible(container)) return;
+        if(!container || !$ax.visibility.IsVisible(container)) return;
 
         if(plusMinusId != '') $ax.style.SetWidgetSelected(plusMinusId, false);
 

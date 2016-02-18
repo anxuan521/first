@@ -137,7 +137,14 @@
 
     $ax.style.ObjHasMouseDown = function(id) {
         var obj = $obj(id);
-        return $ax.style.getElementImageOverride(id, 'mouseDown') || obj.style && obj.style.stateStyles && obj.style.stateStyles.mouseDown;
+        if($ax.style.getElementImageOverride(id, 'mouseDown') || obj.style && obj.style.stateStyles && obj.style.stateStyles.mouseDown) return true;
+
+        var chain = $ax.adaptive.getAdaptiveIdChain($ax.adaptive.currentViewId);
+        for(var i = 0; i < chain.length; i++) {
+            var style = obj.adaptiveStyles[chain[i]];
+            if(style && style.stateStyles && style.stateStyles.mouseDown) return true;
+        }
+        return false;
     };
 
     $ax.style.SetWidgetMouseDown = function(id, value) {
@@ -255,6 +262,7 @@
         // Right now this is the only style on the widget. If other styles (ex. Rollover), are allowed
         //  on TextBox/TextArea, or Placeholder is applied to more widgets, this may need to do more.
         var obj = $jobj(inputId);
+        obj.attr('style', '');
         if (!value) {
             var height = document.getElementById(inputId).style['height'];
             var width = document.getElementById(inputId).style['width'];
@@ -266,7 +274,7 @@
 
             try { //ie8 and below error
                 if(password) document.getElementById(inputId).type = 'password';
-            } catch(e) { }
+            } catch(e) { } 
         } else {
             var element = $('#' + inputId)[0];
             var style = _computeAllOverrides(id, undefined, HINT, $ax.adaptive.currentViewId);
@@ -443,10 +451,7 @@
         var current = $jobj(id).parent();
         while(!current.is("body")) {
             var currentId = current.attr('id');
-            if(currentId && currentId != 'base') {
-                if(currentId.indexOf('_container') != -1) currentId = currentId.split('_')[0];
-                return currentId;
-            }
+            if(currentId && currentId != 'base') return $ax.visibility.getWidgetFromContainer(currentId);
             current = current.parent();
         }
 
@@ -672,40 +677,26 @@
     var ALL_STATES = ['mouseOver', 'mouseDown', 'selected', 'disabled'];
     var _applyImage = $ax.style.applyImage = function (id, imgUrl, state) {
 
-        var idQuery = $jobj(id);
-        if($ax.public.fn.isCompoundVectorHtml(idQuery[0])) {
-            var imageChildren = idQuery.find('img');
-            var intercept1 = imgUrl.lastIndexOf('.');
-            var intercept2 = imgUrl.lastIndexOf('_');
-            var intercept3 = imgUrl.lastIndexOf('/');
-            if(intercept2 >= 0 && intercept2 < intercept1 && intercept3 < intercept2) intercept1 = intercept2;
-
-            var imgUrlHead = imgUrl.substring(0, intercept1);
-            var imgUrlTail = imgUrl.substring(intercept1);
-            for (var j = 0; j < imageChildren.length; j++) {
-                var childUrlSplit = imageChildren[j].src.split('/');
-                var smallUrl = childUrlSplit[childUrlSplit.length-1];
-                var firstP = /p/.exec(smallUrl).index;
-                var componentId = smallUrl.substring(firstP, firstP + 4);
-
-                var imgChildUrl = imgUrlHead + componentId + imgUrlTail;
+        var object = $obj(id);
+        if (object.generateCompound) {
+            for (var i = 0; i < object.compoundChildren.length; i++) {
+                var componentId = object.compoundChildren[i];
                 var childId = $ax.public.fn.getComponentId(id, componentId);
                 var childImgQuery = $jobj(childId + '_img');
-                childImgQuery.attr('src', imgChildUrl);
                 var childQuery = $jobj(childId);
-                for (var i = 0; i < ALL_STATES.length; i++) {
-                    childImgQuery.removeClass(ALL_STATES[i]);
-                    childQuery.removeClass(ALL_STATES[i]);
+                childImgQuery.attr('src', imgUrl[componentId]);
+                for (var j = 0; j < ALL_STATES.length; j++) {
+                    childImgQuery.removeClass(ALL_STATES[j]);
+                    childQuery.removeClass(ALL_STATES[j]);
                 }
-                if(state != 'normal') {
+                if (state != 'normal') {
                     childImgQuery.addClass(state);
                     childQuery.addClass(state);
                 }
             }
-
         } else {
             var imgQuery = $jobj($ax.style.GetImageIdFromShape(id));
-
+            var idQuery = $jobj(id);
             //it is hard to tell if setting the image or the class first causing less flashing when adding shadows.
             imgQuery.attr('src', imgUrl);
             for (var i = 0; i < ALL_STATES.length; i++) {
@@ -796,7 +787,7 @@
         var textObj = $jobj(textId);
         // must check if parent id exists. Doesn't exist for text objs in check boxes, and potentially elsewhere.
         var parentId = textObj.parent().attr('id');
-        if (parentId && parentId.indexOf('_container') != -1) {
+        if (parentId && $ax.visibility.isContainer(parentId)) {
             if (queuedTextToAlign.indexOf(textId) == -1) queuedTextToAlign.push(textId);
             return;
         }
@@ -824,52 +815,79 @@
         var paddingLeft = Number(alignProps.paddingLeft);
         var paddingRight = Number(alignProps.paddingRight);
 
+        var topParam = 0.0;
+        var bottomParam = 1.0;
+        var leftParam = 0.0;
+        var rightParam = 1.0;
+
         var textObj = $jobj(textId);
         var textHeight = _getRtfElementHeight(textObj[0]);
         var textObjParent = textObj.offsetParent();
         var parentId = textObjParent.attr('id');
+        var isConnector = false;
         if(parentId) {
             parentId = $ax.visibility.getWidgetFromContainer(textObjParent.attr('id'));
             textObjParent = $jobj(parentId);
-        }
-        var isCompoundVector = textObjParent[0].hasAttribute('widgetHeight');
-        var widgetSize = $ax.public.fn.getWidgetBoundingRect(textObjParent[0].id);
-        var widgetHeight = widgetSize.height;
-        var widgetWidth = widgetSize.width;
-        var containerHeight = isCompoundVector ? widgetHeight : textObjParent.height();
+            var parentObj = $obj(parentId);
+            if (parentObj['bottomTextPadding']) bottomParam = parentObj['bottomTextPadding'];
+            if (parentObj['topTextPadding']) topParam = parentObj['topTextPadding'];
+            if (parentObj['leftTextPadding']) leftParam = parentObj['leftTextPadding'];
+            if (parentObj['rightTextPadding']) rightParam = parentObj['rightTextPadding'];
 
-        var newTop = 0;
-        if(vAlign == "middle") {
-            newTop = _roundToEven((containerHeight - textHeight + paddingTop - paddingBottom) / 2);
-        } else if(vAlign == "bottom") {
-            newTop = _roundToEven(containerHeight - textHeight - paddingBottom);
-        } else { // else top align
-            newTop = _roundToEven(paddingTop);
-        }
-        
+            // for now all this smart shapes weird shit is mutually exclusive from compound vectors.
 
-        var newWidth = widgetWidth - paddingLeft - paddingRight;
+            isConnector = parentObj.type == $ax.constants.CONNECTOR_TYPE;
+        }
+        if(isConnector) return;
+
+        var isCompoundVector = $ax.public.fn.isCompoundVectorHtml(textObjParent[0]);
+
         var oldWidth = $ax.getNumFromPx(textObj.css('width'));
         var oldLeft = $ax.getNumFromPx(textObj.css('left'));
         var oldTop = $ax.getNumFromPx(textObj.css('top'));
 
-        if (isCompoundVector) {
-            newTop = widgetSize.centerPoint.y - (widgetHeight * 0.5) + newTop;
-            paddingLeft = widgetSize.centerPoint.x - (widgetWidth * 0.5) + paddingLeft;
-        }
+        var widgetWidth, widgetHeight;
+        var newTop = 0;
+        var newLeft = 0.0;
 
+        if(isCompoundVector) {
+            var corners = $ax.public.fn.getFourCorners(textObjParent);
+            var horizontal = $ax.public.fn.vectorMinus(corners.widgetTopRight, corners.widgetTopLeft);
+            var vertical = $ax.public.fn.vectorMinus(corners.widgetBottomLeft, corners.widgetTopLeft);
+            widgetWidth = $ax.public.fn.l2(horizontal.x, horizontal.y);
+            widgetHeight = $ax.public.fn.l2(vertical.x, vertical.y);
+            var relativeHorizontal, relativeVertical;
+
+            if (vAlign == "middle") relativeVertical = _roundToEven((widgetHeight + paddingTop - paddingBottom) / 2.0) / widgetHeight;
+            else if (vAlign == "bottom") relativeVertical = _roundToEven(widgetHeight - paddingBottom - textHeight / 2.0) / widgetHeight;
+            else relativeVertical = _roundToEven(paddingTop + textHeight / 2.0) / widgetHeight;
+            
+            relativeHorizontal = (widgetWidth + paddingLeft - paddingRight) / (2.0 * widgetWidth);
+            newLeft = corners.widgetTopLeft.x + horizontal.x * relativeHorizontal + vertical.x * relativeVertical - oldWidth / 2.0;
+            newTop = corners.widgetTopLeft.y + horizontal.y * relativeHorizontal + vertical.y * relativeVertical - textHeight / 2.0;
+        } else {
+            widgetWidth = textObjParent.width();
+            var relativeTop = 0.0;
+            var height = textObjParent.height();
+            relativeTop = height * topParam;
+            var containerHeight = height * bottomParam - relativeTop;
+
+            if (vAlign == "middle") newTop = _roundToEven(relativeTop + (containerHeight - textHeight + paddingTop - paddingBottom) / 2);
+            else if (vAlign == "bottom") newTop = _roundToEven(relativeTop + containerHeight - textHeight - paddingBottom);
+            else newTop = _roundToEven(paddingTop + relativeTop);
+
+            newLeft = paddingLeft + widgetWidth * leftParam;
+        }
+        var newWidth = widgetWidth * (rightParam - leftParam) - paddingLeft - paddingRight;
         var vertChange = oldTop != newTop;
-        if(vertChange) {
-            textObj.css('top', newTop + 'px');
-        }
+        if (vertChange) textObj.css('top', newTop + 'px');
 
-        var horizChange = newWidth != oldWidth || paddingLeft != oldLeft;
-        if(horizChange) {
-            textObj.css('left', paddingLeft);
+        var horizChange = newWidth != oldWidth || newLeft != oldLeft;
+        if (horizChange) {
+            textObj.css('left', newLeft);
             textObj.width('width', newWidth);
         }
-
-        if((vertChange || horizChange) && !isCompoundVector) _updateTransformOrigin(textId);
+        if ((vertChange || horizChange) && !isCompoundVector) _updateTransformOrigin(textId);
     };
 
     var _updateTransformOrigin = function(textId) {

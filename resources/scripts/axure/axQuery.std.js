@@ -27,6 +27,7 @@ $axure.internal(function($ax) {
     $ax.constants.VERTICAL_LINE_TYPE = 'verticalLine';
     $ax.constants.HORIZONTAL_LINE_TYPE = 'horizontalLine';
     $ax.constants.INLINE_FRAME_TYPE = 'inlineFrame';
+    $ax.constants.CONNECTOR_TYPE = 'connector';
     $ax.constants.ALL_TYPE = '*';
 
     $ax.public.fn.IsTable = function (type) { return type == $ax.constants.TABLE_TYPE; }
@@ -51,6 +52,7 @@ $axure.internal(function($ax) {
     $ax.public.fn.IsTreeNodeObject = function (type) { return type == $ax.constants.TREE_NODE_OBJECT_TYPE; }
     $ax.public.fn.IsTableCell = function (type) { return type == $ax.constants.TABLE_CELL_TYPE; }
     $ax.public.fn.IsInlineFrame = function (type) { return type == $ax.constants.INLINE_FRAME_TYPE; }
+    $ax.public.fn.IsConnector = function (type) { return type == $ax.constants.CONNECTOR_TYPE; }
 
     var PLAIN_TEXT_TYPES = [$ax.constants.TEXT_BOX_TYPE, $ax.constants.TEXT_AREA_TYPE, $ax.constants.LIST_BOX_TYPE,
         $ax.constants.COMBO_BOX_TYPE, $ax.constants.CHECK_BOX_TYPE, $ax.constants.RADIO_BUTTON_TYPE, $ax.constants.BUTTON_TYPE];
@@ -206,8 +208,8 @@ $axure.internal(function($ax) {
                 var src = eventInfo.thiswidget;
                 var target = $ax.getWidgetInfo(elementId);
                 var rects = {};
-                if(src.valid) rects.src = $ax.geometry.genRect(src);
-                if(target.valid) rects.target = $ax.geometry.genRect(target);
+                if(src.valid) rects.src = $ax.geometry.genRect(src, true);
+                if(target.valid) rects.target = $ax.geometry.genRect(target, true);
                 $ax.flyoutManager.registerFlyout(rects, elementId, eventInfo.srcElement);
                 //$ax.style.AddRolloverOverride(elementId);
                 $ax.legacy.BringToFront(elementId);
@@ -328,26 +330,39 @@ $axure.internal(function($ax) {
         compressed = true;
     };
 
-    //move one widget.  I didn't combine moveto and moveby, since this is in .public, and separate them maybe more clear for the user
-    var _move = function(elementId, x, y, options, moveTo) {
-        var easing = 'none';
-        var duration = 500;
-
-        if(options && options.easing) {
-            easing = options.easing;
-
-            if(options.duration) {
-                duration = options.duration;
-            }
+    $ax.public.fn.setOpacity = function(opacity, easing, duration) {
+        if(!easing || ! duration) {
+            easing = 'none';
+            duration = 0;
         }
 
+        var elementIds = this.getElementIds();
+
+        for(var index = 0; index < elementIds.length; index++) {
+            var elementId = elementIds[index];
+            var onComplete = function() {
+                $ax.action.fireAnimationFromQueue(elementId, $ax.action.queueTypes.fade);
+            };
+
+            var query = $jobj(elementId);
+            if(duration == 0 || easing == 'none') {
+                query.css('opacity', opacity);
+                onComplete();
+            } else query.animate({ opacity: opacity }, { duration: duration, easing: easing, queue: false, complete: onComplete });
+        }
+    }
+
+    //move one widget.  I didn't combine moveto and moveby, since this is in .public, and separate them maybe more clear for the user
+    var _move = function (elementId, x, y, options, moveTo) {
+        if(!options.easing) options.easing = 'none';
+        if(!options.duration) options.duration = 500;
         var obj = $obj(elementId);
 
         // Layer move using container now.
         if ($ax.public.fn.IsLayer(obj.type)) {
-            var moveInfo = $ax.move.RegisterMoveInfo(elementId, x, y, moveTo, {easing: easing, duration: duration});
+            var moveInfo = $ax.move.RegisterMoveInfo(elementId, x, y, moveTo, options);
             $ax.event.raiseSyntheticEvent(elementId, "onMove");
-            $ax.move.MoveWidget(elementId, x, y, easing, duration, moveTo,
+            $ax.move.MoveWidget(elementId, x, y, options, moveTo,
                 function () {
                     if(options.onComplete) options.onComplete();
                     $ax.dynamicPanelManager.fitParentPanel(elementId);
@@ -363,23 +378,32 @@ $axure.internal(function($ax) {
             //$ax.move.MoveWidget(childrenIds[i], x, y, easing, duration, moveTo,
             //    function () { $ax.dynamicPanelManager.fitParentPanel(childrenIds[i]); }, true, null, elementId);
 
-        } else if(obj.generateCompound && moveTo) {
-            var location = _getCompoundImageLocation($jobj(elementId));
-            var xDelta = x - location.X;
-            var yDelta = y - location.Y;
-            moveInfo = $ax.move.RegisterMoveInfo(elementId, xDelta, yDelta, moveTo, { easing: easing, duration: duration });
-            $ax.event.raiseSyntheticEvent(elementId, "onMove");
-            $ax.move.MoveWidget(elementId, xDelta, yDelta, easing, duration, false,
-                function() { $ax.dynamicPanelManager.fitParentPanel(elementId); }, true, undefined, moveInfo);
         } else {
-            moveInfo = $ax.move.RegisterMoveInfo(elementId, x, y, moveTo, { easing: easing, duration: duration });
+            var xDelta = x;
+            var yDelta = y;
+            if (moveTo) {
+
+                if(obj.generateCompound) {
+                    var dimensions = _compoundWidgetDimensions($jobj(elementId));
+                    xDelta = x - dimensions.left;
+                    yDelta = y - dimensions.top;
+                } else {
+                    var jobj = $jobj(elementId);
+
+                    var left = Number(jobj.css('left').replace('px', ''));
+                    var top = Number(jobj.css('top').replace('px', ''));
+                    xDelta = x - left;
+                    yDelta = y - top;
+                }
+            }
+            moveInfo = $ax.move.RegisterMoveInfo(elementId, xDelta, yDelta, false, options);
             $ax.event.raiseSyntheticEvent(elementId, "onMove");
-            $ax.move.MoveWidget(elementId, x, y, easing, duration, moveTo,
+            $ax.move.MoveWidget(elementId, xDelta, yDelta, options, false,
                 function () { $ax.dynamicPanelManager.fitParentPanel(elementId); }, true, undefined, moveInfo);
         }
     };
 
-    var _getCompoundImageLocation = function(query) {
+    var _compoundWidgetDimensions = $ax.public.fn.compoundWidgetDimensions = function (query) {
         var fourCorners = $ax.public.fn.getFourCorners(query);
 
         var basis = $ax.public.fn.fourCornersToBasis(fourCorners);
@@ -387,8 +411,11 @@ $axure.internal(function($ax) {
         var width = $ax.public.fn.l2(basis.widthVector.x, basis.widthVector.y);
 
         return {
-            X: (fourCorners.widgetTopLeft.x + fourCorners.widgetBottomRight.x - width) / 2.0,
-            Y: (fourCorners.widgetTopLeft.y + fourCorners.widgetBottomRight.y - height) / 2.0
+            left: (fourCorners.widgetTopLeft.x + fourCorners.widgetBottomRight.x - width) / 2.0,
+            top: (fourCorners.widgetTopLeft.y + fourCorners.widgetBottomRight.y - height) / 2.0,
+            height: height,
+            width: width,
+            fourCorners: fourCorners
         };
     };
 
@@ -421,18 +448,23 @@ $axure.internal(function($ax) {
         return this;
     };
 
-    $ax.public.fn.circularMoveAndRotate = function(degreeChange, options, centerPointLeft, centerPointTop, doRotation) {
+    $ax.public.fn.circularMoveAndRotate = function(degreeChange, options, centerPointLeft, centerPointTop, doRotation, moveDelta, resizeOffset, rotatableMove, moveComplete) {
+        if(!rotatableMove) rotatableMove = { x: 0, y: 0 };
         var elementIds = this.getElementIds();
 
         for(var index = 0; index < elementIds.length; index++) {
             var elementId = elementIds[index];
 
             var obj = $obj(elementId);
+            var onComplete = function () {
+                if (doRotation) $ax.dynamicPanelManager.fitParentPanel(elementId);
+                if (moveComplete) moveComplete();
+            }
 
-            if(obj.generateCompound) {
-                _rotateAroundCompound(elementId, { x: centerPointLeft, y: centerPointTop }, degreeChange, options.easing, options.duration, false, obj, doRotation);
+            if (obj.generateCompound) {
+                _rotateAroundCompound(elementId, { x: centerPointLeft, y: centerPointTop }, degreeChange, moveDelta, rotatableMove, resizeOffset, options.easing, options.duration, obj, doRotation, onComplete);
             } else {
-                $ax.move.circularMove(elementId, degreeChange, { x: centerPointLeft, y: centerPointTop }, options.easing, options.duration, true, doRotation ? undefined : function () { $ax.dynamicPanelManager.fitParentPanel(elementId); });
+                $ax.move.circularMove(elementId, degreeChange, { x: centerPointLeft, y: centerPointTop }, moveDelta, rotatableMove, resizeOffset, options.easing, options.duration, true, onComplete);
                 if(doRotation) $ax.move.rotate(elementId, degreeChange, options.easing, options.duration, false, true, function () { $ax.dynamicPanelManager.fitParentPanel(elementId); });
                 else $ax.action.fireAnimationFromQueue(elementId, $ax.action.queueTypes.rotate);
             }
@@ -441,46 +473,35 @@ $axure.internal(function($ax) {
 
     $ax.public.fn.rotate = function (degree, easing, duration, to, axShouldFire) {
         var elementIds = this.getElementIds();
+        // this function will no longer handle compound vectors.
 
         for(var index = 0; index < elementIds.length; index++) {
             var elementId = elementIds[index];
             degree = parseFloat(degree);
-
-            var obj = $obj(elementId);
-            if(obj.generateCompound) {
-                var center = $ax.public.fn.getWidgetBoundingRect(elementId).centerPoint;
-                _rotateAroundCompound(elementId, center, degree, easing, duration, to, obj, axShouldFire);
-            } else {
-                $ax.move.rotate(elementId, degree, easing, duration, to, axShouldFire, function () { $ax.dynamicPanelManager.fitParentPanel(elementId); });
-            }
+            $ax.move.rotate(elementId, degree, easing, duration, to, axShouldFire, function () { $ax.dynamicPanelManager.fitParentPanel(elementId); });
         }
     };
 
-    var _rotateAroundCompound = function(elementId, center, degree, easing, duration, to, obj, axShouldFire) {
+    var _rotateAroundCompound = function (elementId, center, degree, moveDelta, rotatableMove, resizeOffset, easing, duration, obj, axShouldFire, onComplete) {
         var firstIdObject = $jobj(elementId);
-        var degreeToUse = to ? degree - _getCompoundImageRotation(firstIdObject) : degree;
 
         var nonVectorComponent = firstIdObject.children(":not([id*='p'])");
         for(var x = 0; x < nonVectorComponent.length; x++) {
             var childId = nonVectorComponent[x].id;
-            $ax.move.circularMove(childId, degreeToUse, center, easing, duration, false);
-            $ax.move.rotate(childId, degreeToUse, easing, duration, false, false);
+            $ax.move.circularMove(childId, degree, center, moveDelta, rotatableMove, resizeOffset, easing, duration, false);
+            $ax.move.rotate(childId, degree, easing, duration, false, false);
         }
         for(var j = 0; j < obj.compoundChildren.length; j++) {
-            childId = elementId + obj.compoundChildren[j];
+            childId = $ax.public.fn.getComponentId(elementId, obj.compoundChildren[j]);
             var lastChild = j == obj.compoundChildren.length - 1;
-            $ax.move.compoundRotateAround(childId, degreeToUse, center, easing, duration,
+            $ax.move.compoundRotateAround(childId, degree, center, moveDelta, rotatableMove, resizeOffset, easing, duration,
                 lastChild ? axShouldFire : false,
-                lastChild ? function () { $ax.dynamicPanelManager.fitParentPanel(elementId); } : undefined);
+                lastChild ? onComplete : undefined);
         }
     };
 
-    var _getCompoundImageRotation = function (query) {
-        var fourCorners = $ax.public.fn.getFourCorners(query);
-        return Math.atan2(fourCorners.widgetTopRight.y - fourCorners.widgetTopLeft.y, fourCorners.widgetTopRight.x - fourCorners.widgetTopLeft.x) * (180 / Math.PI);
-    }
 
-    $ax.public.fn.resize = function(newLocationAndSizeCss, resizeInfo, axShouldFire, moves) {
+    $ax.public.fn.resize = function(newLocationAndSizeCss, resizeInfo, axShouldFire, moves, onCompletedFunc) {
         var elementIds = this.getElementIds();
         if(!elementIds) return;
 
@@ -516,6 +537,7 @@ $axure.internal(function($ax) {
                     if(moves) {
                         if(axShouldFire) $ax.action.fireAnimationFromQueue(elementId, $ax.action.queueTypes.move);
                     }
+                    if(onCompletedFunc) onCompletedFunc();
                 };
 
             } else {
@@ -545,18 +567,17 @@ $axure.internal(function($ax) {
                         $ax.action.fireAnimationFromQueue(elementId, $ax.action.queueTypes.resize);
                         if(moves) $ax.action.fireAnimationFromQueue(elementId, $ax.action.queueTypes.move);
                     }
+                    if(onCompletedFunc) onCompletedFunc();
                 };
             }
 
             var children = query.children().not('div.text');
             if(children && children.length !== 0) {
                 var childAnimationArray = [];
-
-                //
-                //_getWidgetBoundingRect(query[0].id)
-                //_getCompoundImageRotation(query)
+                var centerDisplacement;
 
                 if ($ax.public.fn.isCompoundVectorHtml(query[0])) {
+                    var delta = newLocationAndSizeCss.delta || { x: 0, y: 0 };
                     // this is only going to work when all the pieces are orthogonal to the 
 
                     // cannot freaking believe that I'm using eigenvectors for this.
@@ -572,18 +593,30 @@ $axure.internal(function($ax) {
 
                     // TODO: what happens when one of the dimensions is 0?
 
-                    children.each(function(i, child) {
+                    switch (resizeInfo.anchor) {
+                        case "top left":
+                            centerDisplacement = { x: oldWidth / 2.0, y: oldHeight / 2.0 }; break;
+                        case "top":
+                            centerDisplacement = { x: 0, y: oldHeight / 2.0 }; break;
+                        case "top right":
+                            centerDisplacement = { x: -oldWidth / 2.0, y: oldHeight / 2.0 }; break;
+                        case "left":
+                            centerDisplacement = { x: oldWidth / 2.0, y: 0 }; break;
+                        case "center":
+                            centerDisplacement = { x: 0, y: 0 }; break;
+                        case "right":
+                            centerDisplacement = { x: -oldWidth / 2.0, y: 0 }; break;
+                        case "bottom left":
+                            centerDisplacement = { x: oldWidth / 2.0, y: -oldHeight / 2.0 }; break;
+                        case "bottom":
+                            centerDisplacement = { x: 0, y: -oldHeight / 2.0 }; break;
+                        case "bottom right":
+                            centerDisplacement = { x: -oldWidth / 2.0, y: -oldHeight / 2.0 }; break;
+                    }
 
-                        //var widthOffset = child.offsetWidth - oldWidth;
-                        //var heightOffset = child.offsetHeight - oldHeight;
-                        ////sketch won't need to mutiply the offset ratio, but image with shadow needs this... didn't find other usages yet
-                        ////this indeed doesn't matter much, later let's move to css shadow
-                        //if(child.id.indexOf("_image_sketch", this.length - "_image_sketch".length) === -1) {
-                        //    widthOffset = widthOffset * newLocationAndSizeCss.width / oldWidth;
-                        //    heightOffset = heightOffset * newLocationAndSizeCss.height / oldHeight;
-                        //}
+                    children.each(function(i, child) {
                         var childObj = $jobj(child.id);
-                        var childObjCorners = $ax.public.fn.getElementCorners(childObj);
+                        var childObjCorners = $ax.public.fn.getCornersFromComponent(childObj);
                         var stretchMatrix = function (widthRatio, heightRatio) {
                             var stretch = function (initial) {
                                 var relativeToInvariant = $ax.public.fn.vectorPlus(childObjCorners.centerPoint,
@@ -599,9 +632,16 @@ $axure.internal(function($ax) {
                             var transformHeight = $ax.public.fn.vectorMinus(shiftedBackBottomLeft, shiftedBackTopLeft);
                             var shiftedBackCenter = $ax.public.fn.vectorMidpoint(shiftedBackTopRight, shiftedBackBottomLeft);
 
+                            var progress = 1.0;
+                            if (newLocationAndSizeCss.widthRatio != 1.0) progress = (widthRatio - 1.0) / (newLocationAndSizeCss.widthRatio - 1.0);
+                            else if (newLocationAndSizeCss.heightRatio != 1.0) progress = (heightRatio - 1.0) / (newLocationAndSizeCss.heightRatio - 1.0);
+                                
+                            var xShift = (widthRatio - 1.0) * centerDisplacement.x + delta.x * progress;
+                            var yShift = (heightRatio - 1.0) * centerDisplacement.y + delta.y * progress;
+
                             return $ax.public.fn.matrixString(transformWidth.x / childObjCorners.originalDimensions.width, transformWidth.y / childObjCorners.originalDimensions.width,
                                 transformHeight.x / childObjCorners.originalDimensions.height, transformHeight.y / childObjCorners.originalDimensions.height,
-                                shiftedBackCenter.x - childObjCorners.centerPoint.x, shiftedBackCenter.y - childObjCorners.centerPoint.y);
+                                xShift + shiftedBackCenter.x - childObjCorners.centerPoint.x, yShift+ shiftedBackCenter.y - childObjCorners.centerPoint.y);
                         }
 
                         var childSizingObj = { ratio:  0.0 };
@@ -613,36 +653,33 @@ $axure.internal(function($ax) {
                     });
 
                 } else {
+                    var isConnector = $ax.public.fn.IsConnector($obj(elementId).type);
                     children.each(function (i, child) {
                         var childCss = {
                             width: newLocationAndSizeCss.width,
                             height: newLocationAndSizeCss.height
                         };
 
-                        if(child.tagName == 'IMG') {
-                            var childSize = $ax('#' + child.id).size();
-                            var widthOffset = childSize.width - oldWidth;
-                            var heightOffset = childSize.height - oldHeight;
-                            //sketch won't need to mutiply the offset ratio, but connectors needs this when resize
-                            //also image with shadow kinda needs this... this indeed doesn't matter much, later let's move to css shadow
-                            if(child.id.indexOf("_image_sketch", this.length - "_image_sketch".length) === -1) {
-                                widthOffset *= newLocationAndSizeCss.width / oldWidth;
-                                heightOffset *= newLocationAndSizeCss.height / oldHeight;
-                            }
+                        //$ax.size() use outerWidth/Height(false), which include padding and borders(no margins)
+                        var childSizingObj = $ax('#' + child.id).size();
+                        var differentSizedImage = childSizingObj.width - oldWidth != 0 || childSizingObj.height - oldHeight != 0;
+                        if ((differentSizedImage || isConnector) && child.tagName == 'IMG') {
+                            //oldwidth is zero for connectors
+                            var widthOffset = oldWidth ? (childSizingObj.width - oldWidth) * newLocationAndSizeCss.width / oldWidth : childSizingObj.width;
+                            var heightOffset = oldHeight ? (childSizingObj.height - oldHeight) * newLocationAndSizeCss.height / oldHeight : childSizingObj.height;
 
                             childCss.width += widthOffset;
                             childCss.height += heightOffset;
                         }
                         //there are elements like inputs, come with a padding and border, so need to use outerwidth for starting point, due to jquery 1.7 css() on width/height bugs
-                        var childSizingObj = { width: child.offsetWidth, height: child.offsetHeight };
                         if($(child).css('position') === 'absolute') {
                             if(child.offsetLeft) {
                                 childSizingObj.left = child.offsetLeft;
-                                childCss.left = child.offsetLeft * newLocationAndSizeCss.width / oldWidth;
+                                childCss.left = oldWidth ? child.offsetLeft * newLocationAndSizeCss.width / oldWidth : child.offsetLeft; //- transformedShift.x;
                             }
                             if(child.offsetTop) {
                                 childSizingObj.top = child.offsetTop;
-                                childCss.top = child.offsetTop * newLocationAndSizeCss.height / oldHeight;
+                                childCss.top = oldHeight ? child.offsetTop * newLocationAndSizeCss.height / oldHeight : child.offsetTop; //- transformedShift.y;
                             }
                         }
                         childAnimationArray.push({ obj: child, sizingObj: childSizingObj, sizingCss: childCss });
@@ -710,10 +747,11 @@ $axure.internal(function($ax) {
                 else if (!$ax.public.fn.isCompoundVectorHtml(query[0])) {
                     //jquery 1.7 uses jquery.css() to set and get width and height property, getter for width/height doesn't included border and padding
                     //but when you set it use .css, it included the border and padding, so you will see the widget shrink before animate to new size
-                    var position = query.position();
-                    var sizingObj = { width: oldWidth, height: oldHeight, left: position.left, top: position.top }
-
-                    $(sizingObj).animate(newLocationAndSizeCss, {
+                    var locObj = {
+                        left: $ax.public.fn.GetFieldFromStyle(query, 'left'), top: $ax.public.fn.GetFieldFromStyle(query, 'top'),
+                        width: $ax.public.fn.GetFieldFromStyle(query, 'width'), height: $ax.public.fn.GetFieldFromStyle(query, 'height'),
+                    };
+                    $(locObj).animate(newLocationAndSizeCss, {
                         queue: false,
                         duration: resizeInfo.duration,
                         easing: resizeInfo.easing,
@@ -1181,14 +1219,45 @@ $axure.internal(function($ax) {
         return null;
     };
 
+    $ax.public.fn.locRelativeIgnoreLayer = function (vert) {
+        var elementId = this.getElementIds()[0];
+        if(!elementId) return undefined;
+
+        var parents = this.getParents(true, '*')[0];
+
+        for(var i = 0; i < parents.length; i++) {
+            if(!$ax.public.fn.IsLayer($ax.getTypeFromElementId(parents[i]))) {
+                var func = vert ? _getRelativeTop : _getRelativeLeft;
+                return func(elementId, $jobj(parents[i])[0]);
+            }
+        }
+
+        return vert ? this.top() : _bodyToWorld(this.left(), true);
+    };
+
+    var _bodyToWorld = $axure.fn.bodyToWorld = function(x, from) {
+        var body = $('body');
+        if (body.css('position') != 'relative') return x;
+        var offset = (Number(body.css('left').replace('px', '')) + Math.max(0, ($(window).width() - body.width()) / 2));
+        if(from) offset *= -1;
+        return x + offset;
+    }
+
     $ax.public.fn.left = function (relative) {
         var firstId = this.getElementIds()[0];
         if(!firstId) return undefined;
 
         var left = _getLoc(firstId, false, false, relative);
-        var body = $('body');
-        if(body.css('position') == 'relative') left += (Number(body.css('left').replace('px', '')) + Math.max(0, ($(window).width() - body.width()) / 2));
-        return left;
+
+        // If you are absolute, unless your are a pinned panel...
+        if(relative || $obj(firstId).fixedVertical) return left;
+
+        // ... or you are in one...
+        var parentPanels = $ax('#' + firstId).getParents(true, 'dynamicPanel')[0];
+        for(var i = 0; i < parentPanels.length; i++) if ($obj(parentPanels[i]).fixedVertical) return left;
+
+        // ... you must convert from body to world coordinates
+        return _bodyToWorld(left);
     };
 
     $ax.public.fn.top = function(relative) {
@@ -1199,6 +1268,7 @@ $axure.internal(function($ax) {
     var _getLoc = function(id, vert, high, relative) {
         var mathFunc = high ? 'max' : 'min';
         var prop = vert ? 'top' : 'left';
+        var dim = vert ? 'height' : 'width';
 
         var obj = $jobj(id);
         var oldDisplay = obj.css('display');
@@ -1207,32 +1277,46 @@ $axure.internal(function($ax) {
             obj.css('display', '');
             displaySet = true;
         }
-        var loc = $ax.getNumFromPx(obj.css(prop));
-        if (!relative) {
-            var parents = $ax('#' + id).getParents(true, ['item', 'repeater', 'dynamicPanel', 'layer'])[0];
-            for (var i = 0; i < parents.length; i++) {
-                var parentId = $ax.visibility.getWidgetFromContainer(parents[i]);
-                if($ax.public.fn.IsLayer($ax.getTypeFromElementId(parentId))) parentId += '_container';
-                var parent = $jobj(parentId);
+        var loc;
+        var isCompound = $ax.public.fn.isCompoundVectorHtml(obj[0]);
+        if (isCompound) {
+            var dimension = $ax.public.fn.compoundWidgetDimensions(obj);
+            loc = dimension[prop];
+        } else loc = $ax.getNumFromPx(obj.css(prop));
 
-                // Layer may not have container, and will be at 0,0 otherwise.
-                if (!parent.length) continue;
-                loc += $ax.getNumFromPx(parent.css(prop));
+        var fixed = _fixedOffset(id, vert);
+        if(fixed.valid) loc = fixed.offset;
+        else if (!relative) {
+            var parents = $ax('#' + id).getParents(true, ['item', 'repeater', 'dynamicPanel', 'layer'])[0];
+            for(var i = 0; i < parents.length; i++) {
+                var parentId = $ax.visibility.getWidgetFromContainer(parents[i]);
+                var parent = $ax.visibility.applyWidgetContainer(parentId, true);
+
+
+            // Layer may not have container, and will be at 0,0 otherwise.
+            if (!parent.length) continue;
+
+            fixed = _fixedOffset(parentId, vert);
+            if(fixed.valid) {
+                loc += fixed.offset;
+                break; // If fixed ignore any parents if there are any, they don't matter.
+            } else loc += $ax.getNumFromPx(parent.css(prop));
             }
         }
 
-        if(high) loc += obj[vert ? 'height' : 'width']();
+        if (high) loc += isCompound? dimension[dim] : obj[dim]();
 
         // Special Layer code
         if ($ax.getTypeFromElementId(id) == 'layer') {
             // If layer has a container, then use that. Otherwise must deal with children
-            var container = $jobj(id + '_container');
+            var container = $ax.visibility.applyWidgetContainer(id, true, true);
             if(container.length) loc = $ax.getNumFromPx(container.css(prop));
             else {
                 var first = true;
                 var children = $obj(id).objs;
                 for(var i = 0; i < children.length; i++) {
                     var childId = $ax.getElementIdFromPath([children[i].id], { relativeTo: id });
+                    if(!childId) continue;
                     var childProp = _getLoc(childId, vert, high, relative);
                     if(first) loc = childProp;
                     else loc = Math[mathFunc](loc, childProp);
@@ -1248,5 +1332,26 @@ $axure.internal(function($ax) {
         return loc;
     };
 
+    var _fixedOffset = function (id, vert) {
+        var axObj = $obj(id);
+        var obj = $jobj(id);
+        var dim = vert ? 'height' : 'width';
+        var vertKey = (vert ? 'Vertical' : 'Horizontal');
+        var key = 'fixed' + vertKey;
+        var alignment = axObj[key];
+        var loc = axObj['fixedMargin' + vertKey];
+        if(alignment == 'center' || alignment == 'middle') {
+            loc += ($(window)[dim]() - obj[dim]()) / 2;
+        } else if(alignment == 'bottom' || alignment == 'right') {
+            loc = $(window)[dim]() - obj[dim]() - loc; // subract loc because margin here moves farther left/up as it gets bigger.
+        }
+
+        if(axObj[key]) {
+            var scrollKey = 'scroll' + (vert ? 'Y' : 'X');
+            return { offset: window[scrollKey] + loc, valid: true };
+        }
+
+        return { valid: false };
+    };
 
 });

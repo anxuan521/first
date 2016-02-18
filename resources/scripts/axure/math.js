@@ -68,16 +68,7 @@
         // Assuming the element is still orthogonal.
     }
 
-
-    $ax.public.fn.vectorMinus = function(vector1, vector2) {
-        if (!vector1) {
-            var a = 4;
-        }
-        if (!vector2) {
-            var b = 4;
-        }
-        return { x: vector1.x - vector2.x, y: vector1.y - vector2.y };
-    }
+    $ax.public.fn.vectorMinus = function(vector1, vector2) { return { x: vector1.x - vector2.x, y: vector1.y - vector2.y }; }
 
     $ax.public.fn.vectorPlus = function (vector1, vector2) { return { x: vector1.x + vector2.x, y: vector1.y + vector2.y }; }
 
@@ -93,7 +84,6 @@
     $ax.public.fn.matrixString = function(m11, m21, m12, m22, tx, ty) {
         return "Matrix(" + m11 + "," + m21 + "," + m12 + "," + m22 + ", " + tx + ", " + ty + ")";
     }
-
     
     $ax.public.fn.getWidgetBoundingRect = function (widgetId) {
         var emptyRect = { left: 0, top: 0, centerPoint: { x: 0, y: 0 }, width: 0, height: 0 };
@@ -109,14 +99,14 @@
         return _getBoundingRectForSingleWidget(widgetId);
     };
 
-    var _isCompoundVectorComponentHtml = function (hElement) { return hElement.hasAttribute('widgettopleftx'); }
+    var _isCompoundVectorComponentHtml = $ax.public.fn.isCompoundVectorComponentHtml = function (hElement) { return hElement.hasAttribute('widgettopleftx'); }
 
-    var _getLayerChildrenDeep = $ax.public.fn.getLayerChildrenDeep = function (layerId, includeLayers) {
+    var _getLayerChildrenDeep = $ax.public.fn.getLayerChildrenDeep = function (layerId, includeLayers, includeHidden) {
         var deep = [];
         var children = $ax('#' + layerId).getChildren()[0].children;
         for (var index = 0; index < children.length; index++) {
             var childId = children[index];
-            if(!$ax.visibility.IsIdVisible(childId)) continue;
+            if(!includeHidden && !$ax.visibility.IsIdVisible(childId)) continue;
             if ($ax.public.fn.IsLayer($obj(childId).type)) {
                 if (includeLayers) deep.push(childId);
                 var recursiveChildren = _getLayerChildrenDeep(childId, includeLayers);
@@ -151,51 +141,52 @@
         var yOffset = window.pageYOffset || document.documentElement.scrollTop;
 
         var element = document.getElementById(widgetId);
-        var boundingRect;
+        var boundingRect, tempBoundingRect, position;
         var displayChanged = _displayHackStart(element);
-        // Don't think compound needs to be handled here
-        if (_isCompoundVectorHtml(element)) boundingRect = _getCompoundImageBoundingClientSize(widgetId);
-        else {
-            var tempBoundingRect = element.getBoundingClientRect();
-            var position = $(element).position();
 
-            if(!relativeToPage) {
-                // Check for flip. If so, first correct any layer weirdness going on, then account for flip of actual widget
-                var layers = $ax('#' + widgetId).getParents(true, ['layer'])[0];
-                var flip = '';
-                var mirrorWidth = 0;
-                var mirrorHeight = 0;
-                for (var i = 0; i < layers.length; i++) {
-                    var layerPos = $jobj(layers[i]).position();
-                    position.left += layerPos.left;
-                    position.top += layerPos.top;
-
-                    var outer = $jobj(layers[i] + '_container');
-                    if(outer.length) {
-                        var outerPos = outer.position();
-                        position.left += outerPos.left;
-                        position.top += outerPos.top;
-                    }
-
-                    var inner = $jobj(layers[i] + '_container_inner');
-                    if(inner.length) {
-                        flip = inner.data('flip');
-                        mirrorWidth = inner.css('width');
-                        mirrorHeight = inner.css('height');
-                    }
-                }
-                // Now account for flip
-                if(flip == 'x') position.top = mirrorHeight - position.top - tempBoundingRect.height;
-                else if(flip == 'y') position.left = mirrorWidth - position.left - tempBoundingRect.width;
-            }
-
-            boundingRect = {
-                left: relativeToPage ? tempBoundingRect.left + xOffset : position.left,
-                right: relativeToPage ? tempBoundingRect.right + xOffset : position.left + tempBoundingRect.width,
-                top: relativeToPage ? tempBoundingRect.top + yOffset : position.top,
-                bottom: relativeToPage ? tempBoundingRect.bottom + yOffset : position.top + tempBoundingRect.height
-            };
+        if(_isCompoundVectorHtml(element)) {
+            tempBoundingRect =  _getCompoundImageBoundingClientSize(widgetId);
+            position = { left: tempBoundingRect.left, top: tempBoundingRect.top };
+        } else {
+            tempBoundingRect = element.getBoundingClientRect();
+            position = $(element).position();
         }
+        if(!relativeToPage) {
+            // Check for flip. If so, first correct any layer weirdness going on, then account for flip of actual widget
+            var layers = $ax('#' + widgetId).getParents(true, ['layer'])[0];
+            var flip = '';
+            var mirrorWidth = 0;
+            var mirrorHeight = 0;
+            for (var i = 0; i < layers.length; i++) {
+                var layerPos = $jobj(layers[i]).position();
+                position.left += layerPos.left;
+                position.top += layerPos.top;
+
+                var outer = $ax.visibility.applyWidgetContainer(layers[i], true, true);
+                if(outer.length) {
+                    var outerPos = outer.position();
+                    position.left += outerPos.left;
+                    position.top += outerPos.top;
+                }
+
+                var inner = $jobj(layers[i] + '_container_inner');
+                if(inner.length) {
+                    flip = inner.data('flip');
+                    mirrorWidth = $ax.getNumFromPx(inner.css('width'));
+                    mirrorHeight = $ax.getNumFromPx(inner.css('height'));
+                }
+            }
+            // Now account for flip
+            if(flip == 'x') position.top = mirrorHeight - position.top - tempBoundingRect.height;
+            else if(flip == 'y') position.left = mirrorWidth - position.left - tempBoundingRect.width;
+        }
+
+        boundingRect = {
+            left: relativeToPage ? tempBoundingRect.left + xOffset : position.left,
+            right: relativeToPage ? tempBoundingRect.right + xOffset : position.left + tempBoundingRect.width,
+            top: relativeToPage ? tempBoundingRect.top + yOffset : position.top,
+            bottom: relativeToPage ? tempBoundingRect.bottom + yOffset : position.top + tempBoundingRect.height
+        };
 
         _displayHackEnd(displayChanged);
         if (justSides) return boundingRect;
@@ -243,6 +234,15 @@
 
     var _isCompoundVectorHtml = $ax.public.fn.isCompoundVectorHtml = function (hElement) { return hElement.hasAttribute('widgetwidth'); }
 
+    $ax.public.fn.compoundIdFromComponent = function(id) {
+
+        var pPos = id.indexOf('p');
+        var dashPos = id.indexOf('-');
+        if (pPos < 1) return id;
+        else if (dashPos < 0) return id.substring(0, pPos);
+        else return id.substring(0, pPos) + id.substring(dashPos);
+    }
+
     $ax.public.fn.l2 = function (x, y) { return Math.sqrt(x * x + y * y); }
 
     var _getCompoundImageBoundingClientSize = function (elementId) {
@@ -255,7 +255,7 @@
         //        left: 0,
         //        right: 0,
         //        top: 0,
-        //        bottom: 0
+        //        bottom: 0in
         //    };
         //}
 
@@ -276,26 +276,22 @@
 
     }
 
-    var _getElementCorners = $ax.public.fn.getElementCorners = function (query) {
+    var _getFieldFromStyle = $ax.public.fn.GetFieldFromStyle = function (query, field) {
+        var raw = query[0].style[field];
+        if (!raw) raw = query.css(field);
+        return Number(raw.replace('px', ''));
+    }
+
+
+    var _getCornersFromComponent = $ax.public.fn.getCornersFromComponent = function (query) {
         var matrix = $ax.public.fn.transformFromElement(query[0]);
         var currentMatrix = { m11: matrix[0], m21: matrix[1], m12: matrix[2], m22: matrix[3], tx: matrix[4], ty: matrix[5] };
         var dimensions = {};
-        var rawLeft = query[0].style.left;
-        if (!rawLeft) rawLeft = query.css('left');
 
-        dimensions.left = Number(rawLeft.replace('px', ''));
-        var rawTop = query[0].style.top;
-        if (!rawTop) rawTop = query.css('top');
-
-        dimensions.top = Number(rawTop.replace('px', ''));
-        var rawWidth = query[0].style.width;
-        if (!rawWidth) rawWidth = query.css('width');
-
-        dimensions.width = Number(rawWidth.replace('px', ''));
-        var rawHeight = query[0].style.height;
-        if (!rawHeight) rawHeight = query.css('height');
-
-        dimensions.height = Number(rawHeight.replace('px', ''));
+        dimensions.left = _getFieldFromStyle(query, 'left');
+        dimensions.top = _getFieldFromStyle(query, 'top');
+        dimensions.width = _getFieldFromStyle(query, 'width');
+        dimensions.height = _getFieldFromStyle(query, 'height');
         //var transformMatrix1 = { m11: 1, m12: 0, m21: 0, m22: 1, tx: -invariant.x, ty: -invariant.y };
         //var transformMatrix2 = { m11: 1, m12: 0, m21: 0, m22: 1, tx: 500, ty: 500 };
 
@@ -315,11 +311,26 @@
         }
     }
 
-
     var _getFourCorners = $ax.public.fn.getFourCorners = function (query) {
         var childId = $ax.public.fn.getComponentId(query[0].id, 'p000');
+        var firstChildElement = document.getElementById(childId);
+
+        var ohLookTheresAContainerHere = { x: 0.0, y: 0.0 };
+
+        for (var i = 0; i < query[0].children.length; i++) {
+            var node = query[0].children[i];
+            if (node.id.indexOf(query[0].id) >= 0 && node.id.indexOf('container') >= 0) {
+                ohLookTheresAContainerHere = {
+                    x: Number( node.style.left.replace('px', '')), y: Number(node.style.top.replace('px', ''))
+                };
+            }
+        }
+
+
+        var list = _displayHackStart(firstChildElement);
         var thisElt = $jobj(childId);
-        var elementCorners = _getElementCorners(thisElt);
+        var elementCorners = _getCornersFromComponent(thisElt);
+        _displayHackEnd(list);
         var transformedWidth = $ax.public.fn.vectorMinus(elementCorners.relativeTopRight, elementCorners.relativeTopLeft);
         var transformedHeight = $ax.public.fn.vectorMinus(elementCorners.relativeBottomLeft, elementCorners.relativeTopLeft);
 
@@ -328,8 +339,8 @@
             m12: transformedHeight.x,
             m21: transformedWidth.y,
             m22: transformedHeight.y,
-            tx: elementCorners.centerPoint.x + elementCorners.transformShift.x,
-            ty: elementCorners.centerPoint.y + elementCorners.transformShift.y
+            tx: elementCorners.centerPoint.x + elementCorners.transformShift.x + ohLookTheresAContainerHere.x,
+            ty: elementCorners.centerPoint.y + elementCorners.transformShift.y + ohLookTheresAContainerHere.y
         }
         var widgetBottomRightRotated = { x: Number(thisElt[0].getAttribute('widgetbottomrightx')), y: Number(thisElt[0].getAttribute('widgetbottomrighty')) };
         var widgetTopRightRotated = { x: Number(thisElt[0].getAttribute('widgettoprightx')), y: Number(thisElt[0].getAttribute('widgettoprighty')) };

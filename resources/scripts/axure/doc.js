@@ -340,15 +340,14 @@
                     widget.pagey = elementAxQuery.top();
                 }
             } else {
-                var x = elementQuery.css('left');
-                if (x !== undefined) x = Number(x.replace('px', ''));
-                var y = elementQuery.css('top');
-                if (y !== undefined) y = Number(y.replace('px', ''));
+                var elementExists = elementQuery.length > 0;
+                var x = elementExists ? elementAxQuery.locRelativeIgnoreLayer(false) : 0;
+                var y = elementExists ? elementAxQuery.locRelativeIgnoreLayer(true) : 0;
 
                 widget.x = x;
                 widget.y = y;
 
-                if(elementQuery.length != 0) {
+                if(elementExists) {
                     widget.pagex = elementAxQuery.left();
                     widget.pagey = elementAxQuery.top();
                     widget.width = elementAxQuery.width();

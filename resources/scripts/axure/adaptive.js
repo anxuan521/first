@@ -4,6 +4,8 @@
     $axure.utils.makeBindable($ax.adaptive, ["viewChanged"]);
 
     var _auto = true;
+    var _autoIsHandledBySidebar = false;
+
     var _views;
     var _idToView;
     var _enabledViews = [];
@@ -20,6 +22,7 @@
 
     var _handleResize = function(forceSwitchTo) {
         if(!_auto) return;
+        if(_auto && _autoIsHandledBySidebar && !forceSwitchTo) return;
 
         var $window = $(window);
         var height = $window.height();
@@ -66,7 +69,7 @@
             var element = document.getElementById(elementId);
             if(element && !diagramObject.isContained) {
                 var resetCss = {
-                    top: "", left: "", width: "", height: "",
+                    top: "", left: "", width: "", height: "", opacity: "",
                     transform: "", webkitTransform: "", MozTransform: "", msTransform: "", OTransform: ""
                 };
                 var query = $(element);
@@ -98,6 +101,8 @@
         if(!viewId) {
             _updateInputVisibility('', $axure('*'));
             $axure('*').each(function(diagramObject, elementId) {
+                $ax.placeholderManager.refreshPlaceholder(elementId);
+
                 var images = diagramObject.images;
                 if(diagramObject.type == 'horizontalLine' || diagramObject.type == 'verticalLine') {
                     var startImg = images['start~'];
@@ -106,19 +111,36 @@
                     _setLineImage(elementId + "_end", endImg);
                     var lineImg = images['line~'];
                     _setLineImage(elementId + "_line", lineImg);
+                } else if(diagramObject.type == $ax.constants.CONNECTOR_TYPE) {
+                    _setAdaptiveConnectorImages(elementId, images, '');
                 } else {
-                    if(!images) return;
-                    if($ax.style.IsWidgetDisabled(elementId)) {
-                        var disabledImage = $ax.style.getElementImageOverride(elementId, 'disabled') || images['disabled~'];
-                        if(disabledImage) $ax.style.applyImage(elementId, disabledImage, 'disabled');
-                        return;
+                    if (!images) return;
+                    if (diagramObject.generateCompound) {
+
+                        if($ax.style.IsWidgetDisabled(elementId)) {
+                            disabledImage = _getImageWithTag(images, 'disabled~');
+                            if(disabledImage) $ax.style.applyImage(elementId, disabledImage, 'disabled');
+                            return;
+                        }
+                        if($ax.style.IsWidgetSelected(elementId)) {
+                            selectedImage = _getImageWithTag(images, 'selected~');
+                            if(selectedImage) $ax.style.applyImage(elementId, selectedImage, 'selected');
+                            return;
+                        }
+                        $ax.style.applyImage(elementId, _getImageWithTag(images, 'normal~'));
+                    } else {
+                        if ($ax.style.IsWidgetDisabled(elementId)) {
+                            var disabledImage = $ax.style.getElementImageOverride(elementId, 'disabled') || images['disabled~'];
+                            if (disabledImage) $ax.style.applyImage(elementId, disabledImage, 'disabled');
+                            return;
+                        }
+                        if ($ax.style.IsWidgetSelected(elementId)) {
+                            var selectedImage = $ax.style.getElementImageOverride(elementId, 'selected') || images['selected~'];
+                            if (selectedImage) $ax.style.applyImage(elementId, selectedImage, 'selected');
+                            return;
+                        }
+                        $ax.style.applyImage(elementId, $ax.style.getElementImageOverride(elementId, 'normal') || images['normal~']);
                     }
-                    if($ax.style.IsWidgetSelected(elementId)) {
-                        var selectedImage = $ax.style.getElementImageOverride(elementId, 'selected') || images['selected~'];
-                        if(selectedImage) $ax.style.applyImage(elementId, selectedImage, 'selected');
-                        return;
-                    }
-                    $ax.style.applyImage(elementId, $ax.style.getElementImageOverride(elementId, 'normal') || images['normal~']);
                 }
 
                 var child = $jobj(elementId).children('.text');
@@ -138,6 +160,15 @@
         $ax.adaptive.triggerEvent('viewChanged', {});
         if(_loadFinished) $ax.viewChangePageAndMasters(forceSwitchTo);
     };
+
+    var _getImageWithTag  = function(image, tag) {
+        var flattened = {};
+        for (var component in image) {
+            var componentImage = image[component][tag];
+            if(componentImage) flattened[component] = componentImage;
+        }
+        return flattened;
+    }
 
     // gets if input is hidden due to sketch
     var BORDER_WIDTH = "borderWidth";
@@ -217,6 +248,15 @@
         }
     };
 
+    var _setAdaptiveConnectorImages = function (elementId, images, view) {
+        var conn = $jobj(elementId);
+        var count = conn.children().length-1; // -1 for rich text panel
+        for(var i = 0; i < count; i++) {
+            var img = images['' + i + '~' + view];
+            $jobj(elementId + '_seg' + i).attr('src', img);
+        }
+    };
+
     var _applyView = $ax.adaptive.applyView = function(viewId, query) {
         var limboIds = {};
         var hiddenIds = {};
@@ -259,7 +299,12 @@
         if(images) {
             if(diagramObject.type == 'horizontalLine' || diagramObject.type == 'verticalLine') {
                 _setAdaptiveLineImages(elementId, images, viewIdChain);
-            } else {
+            } else if (diagramObject.type == $ax.constants.CONNECTOR_TYPE) {
+                _setAdaptiveConnectorImages(elementId, images, viewId);
+            } else if (diagramObject.generateCompound) {
+                var compoundUrl = _matchImageCompound(diagramObject, elementId, viewIdChain, state);
+                if (compoundUrl) $ax.style.applyImage(elementId, compoundUrl, state);
+            }else {
                 var imgUrl = _matchImage(elementId, images, viewIdChain, state);
                 if(imgUrl) $ax.style.applyImage(elementId, imgUrl, state);
             }
@@ -314,15 +359,23 @@
         return images['normal~']; // this is the default
     };
 
-    $ax.adaptive.getImageForStateAndView = function(id, state) {
-        var viewIdChain = _getAdaptiveIdChain($ax.adaptive.currentViewId);
-        var diagramObject = $ax.getObjectFromElementId(id);
-        var images = diagramObject.images;
-
-        return _matchImage(id, images, viewIdChain, state);
+    var _matchImageCompound = function(diagramObject, id, viewIdChain, state) {
+        var images = [];
+        for(var i = 0; i < diagramObject.compoundChildren.length; i++) {
+            var component = diagramObject.compoundChildren[i];
+            images[component] = _matchImage(id, diagramObject.images[component], viewIdChain, state);
+        }
+        return images;
     };
 
 
+
+    $ax.adaptive.getImageForStateAndView = function(id, state) {
+        var viewIdChain = _getAdaptiveIdChain($ax.adaptive.currentViewId);
+        var diagramObject = $ax.getObjectFromElementId(id);
+        if (diagramObject.generateCompound) return _matchImageCompound(diagramObject, id, viewIdChain, state);
+        else return _matchImage(id, diagramObject.images, viewIdChain, state);
+    };
 
     var _getAdaptiveView = function(winWidth, winHeight) {
         var _isViewOneGreaterThanTwo = function(view1, view2) {
@@ -386,6 +439,9 @@
             if(!_isAdaptiveInitialized()) {
                 _initialViewToLoad = view;
             } else _handleLoadViewId(view);
+        } else if(message == 'setAdaptiveViewForSize') {
+            _autoIsHandledBySidebar = true;
+            _handleSetViewForSize(data.width, data.height);
         }
     });
 
@@ -429,5 +485,13 @@
             _setAuto(true);
             _handleResize(forceSwitchTo);
         }
+    };
+
+    var _handleSetViewForSize = function (width, height) {
+        if(!_auto) return;
+
+        var toView = _getAdaptiveView(width, height);
+        var toViewId = toView && toView.id;
+        _switchView(toViewId);
     };
 });

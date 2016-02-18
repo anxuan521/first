@@ -125,9 +125,7 @@ $axure.internal(function($ax) {
 
         if (displaySet) currentNode.css('display', oldDisplay);
 
-        var body = $('body');
-        if(body.css('position') == 'relative') left -= (Number(body.css('left').replace('px', '')) + Math.max(0, ($(window).width() - body.width()) / 2));
-        return left;
+        return $axure.fn.bodyToWorld(left, true);
     };
 
     $ax.legacy.getAbsoluteTop = function(currentNode, elementId) {
@@ -167,12 +165,20 @@ $axure.internal(function($ax) {
     $ax.legacy.GetAnnotationHtml = function(annJson) {
         var retVal = "";
         for(var noteName in annJson) {
-            if(noteName != "label") {
+            if(noteName != "label" && noteName != "id") {
                 retVal += "<div class='annotationName'>" + noteName + "</div>";
-                retVal += "<div class='annotation'>" + annJson[noteName] + "</div>";
+                retVal += "<div class='annotationValue'>" + linkify(annJson[noteName]) + "</div>";
             }
         }
         return retVal;
+
+        function linkify(text) {
+            var urlRegex = /(\b(((https?|ftp|file):\/\/)|(www\.))[-A-Z0-9+&@#\/%?=~_|!:,.;]*[-A-Z0-9+&@#\/%=~_|])/ig;
+            return text.replace(urlRegex, function (url, b, c) {
+                var url2 = (c == 'www.') ? 'http://' + url : url;
+                return '<a href="' + url2 + '" target="_blank" class="noteLink">' + url + '</a>';
+            });
+        }
     };
 
 

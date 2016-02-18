@@ -10,6 +10,7 @@ var FIREFOX = false;
 var WEBKIT = false;
 var OS_MAC = false;
 var IOS = false;
+var MOBILE_DEVICE = false;
 
 var IE = false;
 var IE_10_AND_BELOW = false;  //ie 10 and lower
@@ -46,6 +47,15 @@ var BROWSER_VERSION = 5000;
 
     IOS = useragent.match(/iPhone/i) || useragent.match(/iPad/i) || useragent.match(/iPod/i);
 
+    MOBILE_DEVICE = navigator.userAgent.match(/Android/i)
+        || navigator.userAgent.match(/webOS/i)
+        || navigator.userAgent.match(/iPhone/i)
+        || navigator.userAgent.match(/iPad/i)
+        || navigator.userAgent.match(/iPod/i)
+        || navigator.userAgent.match(/BlackBerry/i)
+        || navigator.userAgent.match(/Tablet PC/i)
+        || navigator.userAgent.match(/Windows Phone/i);
+    
     if($.browser) {
         if($.browser.msie) IE_10_AND_BELOW = true;
         else IE_11_AND_ABOVE = useragent.toLowerCase().indexOf('trident') > -1;

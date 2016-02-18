@@ -267,12 +267,20 @@
     //        return !IsOver(movingRects, targetRects);
     //    }
 
-    $ax.drag.LogMovedWidgetForDrag = function(id) {
-        if(widgetDragInfo.hasStarted) {
-            var widget = $('#' + id);
-            var y = Number(widget.css('top').replace("px", ""));
-            var x = Number(widget.css('left').replace("px", ""));
-            var movedWidgets = widgetDragInfo.movedWidgets;
+    $ax.drag.LogMovedWidgetForDrag = function (id, dragInfo) {
+        dragInfo = dragInfo || widgetDragInfo;
+        if(dragInfo.hasStarted) {
+            var containerIndex = id.indexOf('_container');
+            if(containerIndex != -1) id = id.substring(0, containerIndex);
+
+            // If state or other non-widget id, this should not be dragged, and should exit out to avoid exceptions.
+            if(!$obj(id)) return;
+
+            var query = $ax('#' + id);
+            var x = query.left();
+            var y = query.top();
+
+            var movedWidgets = dragInfo.movedWidgets;
             if(!movedWidgets[id]) {
                 movedWidgets[id] = new Location(x, y);
             }

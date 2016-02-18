@@ -81,8 +81,17 @@ $axure.internal(function($ax) {
                 if(elementIdQuery.is('a')) _attachCustomObjectEvent(elementId, event_Name, fn);
                 //see notes below
                 else if($ax.IsTreeNodeObject(type)) _attachTreeNodeEvent(elementId, event_Name, fn);
-                else if($ax.IsImageFocusable(type) && (event_Name == 'focus' || event_Name == 'blur')) {
-                    _attachDefaultObjectEvent($jobj($ax.repeater.applySuffixToElementId(elementId, '_img')), elementId, event_Name, fn);
+                else if ($ax.IsImageFocusable(type) && (event_Name == 'focus' || event_Name == 'blur')) {
+                    var suitableChild;
+                    var imgChild = $ax.repeater.applySuffixToElementId(elementId, '_img');
+                    var divChild = $ax.repeater.applySuffixToElementId(elementId, '_div');
+
+                    for (var j = 0; j < elementIdQuery[0].children.length; j++) {
+                        if (elementIdQuery[0].children[j].id == imgChild) suitableChild = imgChild;
+                        if (!suitableChild && elementIdQuery[0].children[j].id == divChild) suitableChild = divChild;
+                    }
+                    if(!suitableChild) suitableChild = imgChild;
+                    _attachDefaultObjectEvent($jobj(suitableChild), elementId, event_Name, fn);
                 } else {
                     var inputId = $ax.INPUT(elementId);
                     var isInput = $jobj(inputId).length != 0;
@@ -174,13 +183,12 @@ $axure.internal(function($ax) {
     var _notAllowedInvisible = function (id) {
         var type = $ax.getTypeFromElementId(id);
         if ($ax.public.fn.IsReferenceDiagramObject(type) || $ax.public.fn.IsLayer(type)) return false;
-        return !($ax.public.fn.IsVector(type) && _hasCompoundImage(id));
+        return !($ax.public.fn.IsVector(type) && _hasCompoundImage(id)); 
     }
 
     var _hasCompoundImage = function (id) {
-        var found = $jobj(id + "p000");
-
-        return found.length;
+        var query = $jobj(id);
+        return $ax.public.fn.isCompoundVectorHtml(query[0]);
     }
 
     var eventNesting = 0;
@@ -214,7 +222,7 @@ $axure.internal(function($ax) {
         eventNesting += 1;
 
         var eventDescription = axEventObject.description;
-        if(!_getCanClick() && eventDescription == 'OnClick') return;
+        if(!_getCanClick() && (eventDescription == 'OnClick' || eventDescription == 'OnPageClick')) return;
         // If you are supposed to suppress, do that right away.
         if(suppressedEventStatus[eventDescription]) {
             return;
@@ -224,8 +232,15 @@ $axure.internal(function($ax) {
         if(!synthetic && currentEvent && currentEvent.originalEvent && currentEvent.originalEvent.handled && !eventInfo.isMasterEvent) return;
         if(!synthetic && elementId && !$ax.style.getObjVisible(elementId) && _notAllowedInvisible(elementId)) return;
 
+        //if debug
+        var axObj = $obj(elementId);
+        var axObjLabel = axObj ? axObj.label : eventInfo.label;
+        var axObjType = axObj ? axObj.friendlyType : eventInfo.friendlyType;
+        if(!skipShowDescriptions || eventDescription == 'OnPageLoad') $ax.messageCenter.postMessage('axEvent', { 'label': axObjLabel, 'type': axObjType, 'event': axEventObject });
+
         var bubble = true;
-        if(skipShowDescriptions || !_shouldShowCaseDescriptions(axEventObject)) {
+        var showCaseDescriptions = !skipShowDescriptions && _shouldShowCaseDescriptions(axEventObject);
+        if(!showCaseDescriptions) {
             //handle case descriptions
             var caseGroups = [];
             var currentCaseGroup = [];
@@ -285,6 +300,8 @@ $axure.internal(function($ax) {
             suppressedEventStatus[suppressingEvents[eventDescription]] = true;
         }
 
+        $ax.action.flushAllResizeMoveActions(eventInfo);
+
         // This should not be needed anymore. All refreshes should be inserted, or handled earlier.
         var repeaters = $ax.deepCopy($ax.action.repeatersToRefresh);
         while($ax.action.repeatersToRefresh.length) $ax.action.repeatersToRefresh.pop();
@@ -302,6 +319,8 @@ $axure.internal(function($ax) {
 
         eventNesting -= 1;
 
+        if(!showCaseDescriptions) $ax.messageCenter.postMessage('axEventComplete');
+
     };
 
     var _showCaseDescriptions = function(elementId, eventInfo, axEventObject, synthetic) {
@@ -318,7 +337,14 @@ $axure.internal(function($ax) {
             for(var i = 0; i < axEventObject.cases.length; i++) {
                 var $link = $("<div class='intcaselink'>" + axEventObject.cases[i].description + "</div>");
                 $link.click(function(j) {
-                    return function() {
+                    return function () {
+                        var currentCase = axEventObject.cases[j];
+                        $ax.messageCenter.postMessage('axCase', { 'description': currentCase.description });
+                        for(var k = 0; k < currentCase.actions.length; k++) {
+                            $ax.messageCenter.postMessage('axAction', { 'description': currentCase.actions[k].description });
+                        }
+                        $ax.messageCenter.postMessage('axEventComplete');
+
                         var bubble = $ax.action.dispatchAction(copy, axEventObject.cases[j].actions);
                         $('#' + linksId).remove();
                         return bubble;
@@ -342,6 +368,7 @@ $axure.internal(function($ax) {
             var $link = $("<div class='intcaselink'>" + fullDescription + "</div>");
             $link.click(function() {
                 _handleEvent(elementId, eventInfo, axEventObject, true, synthetic);
+                $ax.messageCenter.postMessage('axEventComplete');
                 $('#' + linksId).remove();
                 return;
             });
@@ -385,6 +412,11 @@ $axure.internal(function($ax) {
         for(var i = 0; i < caseGroup.length; i++) {
             var currentCase = caseGroup[i];
             if(!currentCase.condition || _processCondition(currentCase.condition, eventInfo)) {
+                $ax.messageCenter.postMessage('axCase', { 'description': currentCase.description });
+                for(var j = 0; j < currentCase.actions.length; j++) {
+                    if(currentCase.actions[j].action != 'refreshRepeater') $ax.messageCenter.postMessage('axAction', { 'description': currentCase.actions[j].description });
+                }
+
                 for(var j = 0; j < currentCase.actions.length; j++) {
                     var action = currentCase.actions[j];
                     if(action.action == 'wait') break;
@@ -463,7 +495,7 @@ $axure.internal(function($ax) {
         // If first child non existant return
         if (!mainObj) return;
 
-        var mainId = $ax.getElementIdFromPath([mainObj.id], elementId);
+        var mainId = $ax.getElementIdFromPath([mainObj.id], { relativeTo: elementId });
         _widgetToFocusParent[mainId] = elementId;
 
         // If first child is a layer, call recursively
@@ -502,15 +534,21 @@ $axure.internal(function($ax) {
     // For layers, we remember who their proxy is.
     $ax.event.getFocusableWidgetOrChildId = function (elementId) {
         var mappedId = _layerToFocusableWidget[elementId];
-        if(mappedId) elementId = mappedId;
-
-        var imgId = $ax.repeater.applySuffixToElementId(elementId, '_img');
-        var imgQuery = $jobj(imgId);
+        if (mappedId) elementId = mappedId;
 
         var inputId = $ax.repeater.applySuffixToElementId(elementId, '_input');
         var inputQuery = $jobj(inputId);
+        if(inputQuery.length > 0) return inputId;
 
-        return inputQuery.length > 0 ? inputId : imgQuery.length > 0 ? imgId : elementId;
+        var imgId = $ax.repeater.applySuffixToElementId(elementId, '_img');
+        var imgQuery = $jobj(imgId);
+        if (imgQuery.length > 0) return imgId;
+
+        var divId = $ax.repeater.applySuffixToElementId(elementId, '_div');
+        var divQuery = $jobj(divId);
+        if (divQuery.length > 0) return divId;
+
+        return elementId;
     };
 
     // key is the suppressing event, and the value is the event that is supressed
@@ -549,6 +587,7 @@ $axure.internal(function($ax) {
         
         query.each(function(dObj, elementId) {
             var $element = $jobj(elementId);
+            var itemId = $ax.repeater.getItemIdFromElementId(elementId);
 
             // Focus has to be done before on focus fires
             // Set up focus
@@ -617,7 +656,6 @@ $axure.internal(function($ax) {
                         dynamicPanelMouseUp(parent.id);
                         if(parent.direct) return;
                     }
-                    var mouseDownId = _event.mouseDownObjectId;
                     _event.mouseDownObjectId = '';
                     if(!$ax.style.ObjHasMouseDown(elementId)) return;
 
@@ -634,14 +672,14 @@ $axure.internal(function($ax) {
 
             //initialize disabled elements, do this first before selected, cause if a widget is disabled, we don't want to apply selected style anymore
             if (($ax.public.fn.IsVector(dObj.type) || $ax.public.fn.IsImageBox(dObj.type) || $ax.public.fn.IsDynamicPanel(dObj.type) || $ax.public.fn.IsLayer(dObj.type))
-                && dObj.disabled) {
+                && dObj.disabled && !itemId) {
                 if (!$axElement) $axElement = $ax('#' + elementId);
                 $axElement.enabled(false);
             }
 
-            // Initialize selected elements
+            // Initialize selected elements if not in repeater
             if(($ax.public.fn.IsVector(dObj.type) || $ax.public.fn.IsImageBox(dObj.type) || $ax.public.fn.IsDynamicPanel(dObj.type) || $ax.public.fn.IsLayer(dObj.type))
-                && dObj.selected) {
+                && dObj.selected && !itemId) {
                 if(!$axElement) $axElement = $ax('#' + elementId);
                 $axElement.selected(true);
             }
@@ -777,7 +815,6 @@ $axure.internal(function($ax) {
                 var children = $element.children('[id="' + childrenId + '"]:first');
                 if(children.length > 0) {
                     var plusMinusId = 'u' + (parseInt($ax.repeater.getScriptIdFromElementId(elementId).substring(1)) + 1);
-                    var itemId = $ax.repeater.getItemIdFromElementId(elementId);
                     if(itemId) plusMinusId = $ax.repeater.createElementId(plusMinusId, itemId);
                     if(!$jobj(plusMinusId).children().first().is('img')) plusMinusId = '';
                     $ax.tree.InitializeTreeNode(elementId, plusMinusId, childrenId);
@@ -1278,8 +1315,8 @@ $axure.internal(function($ax) {
             newX = e.pageX;
             newY = e.pageY;
         }
-        var body = $('body');
-        if(body.css('position') == 'relative') newX = Math.round(newX - Number(body.css('left').replace('px', '')) - Math.max(0, ($(window).width() - body.width()) / 2));
+        //var body = $('body');
+        //if(body.css('position') == 'relative') newX = Math.round(newX - Number(body.css('left').replace('px', '')) - Math.max(0, ($(window).width() - body.width()) / 2));
 
         if(_mouseLocation.x == newX && _mouseLocation.y == newY) return;
 
@@ -1536,6 +1573,10 @@ $axure.internal(function($ax) {
                 var map = $ax.pageData.page.interactionMap;
                 var currentEvent = $ax.getjBrowserEvent();
                 var pageEventInfo = $ax.getEventInfoFromEvent(currentEvent, skipShowDescription, '');
+
+                pageEventInfo.label = $ax.pageData.page.name;
+                pageEventInfo.friendlyType = 'Page';
+
                 var pageEvent = map && map[eventName];
                 var scrolling = currentEvent && currentEvent.type === "scroll";
                 if (scrolling && !pageEvent && map) pageEvent = map.onScrollUp || map.onScrollDown;
@@ -1576,6 +1617,7 @@ $axure.internal(function($ax) {
                         _fireEventsForTableMenuAndTree(obj, eventName, skipShowDescription, undefined, path, !synthetic);
                     } else {
                         var scriptId = $ax.getScriptIdFromPath(pathCopy);
+                        if(scriptId && itemId) scriptId = $ax.repeater.createElementId(scriptId, itemId);
                         $ax.event.raiseSyntheticEvent(scriptId, eventName, skipShowDescription, undefined, !synthetic);
                     }
                 }

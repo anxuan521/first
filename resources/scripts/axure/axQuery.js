@@ -180,6 +180,9 @@
         var parentIds = [];
 
         var getParent = function(elementId) {
+            var containerIndex = elementId.indexOf('_container');
+            if(containerIndex != -1) elementId = elementId.substring(0, containerIndex);
+
             // Layer only references it if it is a direct layer to it
             var parent = $ax.getLayerParentFromElementId(elementId);
             // If layer is allowed we found parent, otherwise ignore and keep climbing
@@ -214,7 +217,8 @@
             var masterPath = $ax.getPathFromScriptId($ax.repeater.getScriptIdFromElementId(elementId));
             masterPath.pop();
             if(masterPath.length > 0) {
-                var masterId = $ax.getElementIdFromPath(masterPath, {itemNum: itemNum});
+                var masterId = $ax.getElementIdFromPath(masterPath, { itemNum: itemNum });
+                if(!masterId) return undefined;
                 var masterRepeater = $ax.getParentRepeaterFromElementId($ax.repeater.getScriptIdFromElementId(masterId));
                 if(!parentRepeater || masterRepeater) {
                     parentType = 'rdo';
@@ -229,7 +233,8 @@
                 // If there is a parent master, the dynamic panel must be in it, otherwise parentDynamicPanel would be undefined.
                 var panelPath = masterPath;
                 panelPath[panelPath.length] = parentDynamicPanel;
-                panelId = $ax.getElementIdFromPath(panelPath, {itemNum: itemNum});
+                panelId = $ax.getElementIdFromPath(panelPath, { itemNum: itemNum });
+                if(!panelId) return undefined;
                 var panelRepeater = $ax.getParentRepeaterFromElementId(panelId);
                 if(!parentRepeater || panelRepeater) {
                     parentType = 'state';
@@ -247,12 +252,9 @@
                 var parents = [];
                 while(parent) {
                     parents[parents.length] = parent;
-                    // If id is not a valid object, you are either repeater item
-                    if(!$obj(parent)) {
-                        parent = $jobj(parent).parent().attr('id');
-                        // or dynamic panel state.
-                        if (parent.indexOf('_container') != -1) parent = parent.split('_')[0];
-                    }
+                    // If id is not a valid object, you are either repeater item or dynamic panel state
+                    if(!$obj(parent)) parent = $ax.visibility.getWidgetFromContainer($jobj(parent).parent().attr('id'));
+
                     parent = getParent(parent);
                 }
                 parent = parents;
@@ -299,7 +301,7 @@
 
                 // Menu doesn't want all children, only tables and menus, so it must be handled specially
                 var children = isMenu ? parent.children('.ax_table').add(parent.children('.ax_menu')) : parent.children();
-                while(children.length && $(children[0]).attr('id').indexOf('_container') != -1) children = $(children[0]).children();
+                children = $ax.visibility.getRealChildren(children);
                 
                 // For tree nodes you want the the button shape contained by the elementQuery too
                 if(isTreeNode) {
