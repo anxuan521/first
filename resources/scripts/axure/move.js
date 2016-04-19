@@ -9,15 +9,7 @@
         var widget = $jobj(id);
         var query = $ax('#' + id);
         var isLayer = $ax.getTypeFromElementId(id) == $ax.constants.LAYER_TYPE;
-        var rootLayer = isLayer ? id : '';
-
-        var parentIds = $ax('#' + id).getParents(true, '*')[0];
-        for(var i = 0; i < parentIds.length; i++) {
-            var parentId = parentIds[i];
-            // Keep climbing up layers until you hit a non-layer. At that point you have your root layer
-            if($ax.public.fn.IsLayer($ax.getTypeFromElementId(parentId))) rootLayer = parentId;
-            else break;
-        }
+        var rootLayer = _move.getRootLayer(id);
 
         if(rootLayer) {
             $ax.visibility.pushContainer(rootLayer, false);
@@ -32,14 +24,15 @@
 
         if (fixedInfo.horizontal == 'right') {
             horzProp = 'right';
-            horzX = to ? $(window).width() - x - Number(jobj.css('right').replace('px', '')) - widget.width() : -x;
-        } else if (fixedInfo.horizontal == 'center') {
+            horzX = to ? $(window).width() - x - Number(jobj.css('right').replace('px', '')) - query.width() : -x;
+        } else if(fixedInfo.horizontal == 'center') {
+            horzProp = 'margin-left';
             if (to) horzX = x - $(window).width() / 2;
         }
 
         if (fixedInfo.vertical == 'bottom') {
             vertProp = 'bottom';
-            vertY = to ? $(window).height() - y - Number(jobj.css('bottom').replace('px', '')) - widget.height() : -y;
+            vertY = to ? $(window).height() - y - Number(jobj.css('bottom').replace('px', '')) - query.height() : -y;
         } else if (fixedInfo.vertical == 'middle') {
             vertProp = 'margin-top';
             if (to) vertY = y - $(window).height() / 2;
@@ -66,35 +59,36 @@
         return $.extend({}, widgetMoveInfo);
     };
 
+    _move.getRootLayer = function (id) {
+        var isLayer = $ax.getTypeFromElementId(id) == $ax.constants.LAYER_TYPE;
+        var rootLayer = isLayer ? id : '';
+
+        var parentIds = $ax('#' + id).getParents(true, '*')[0];
+        for(var i = 0; i < parentIds.length; i++) {
+            var parentId = parentIds[i];
+            // Keep climbing up layers until you hit a non-layer. At that point you have your root layer
+            if($ax.public.fn.IsLayer($ax.getTypeFromElementId(parentId))) rootLayer = parentId;
+            else break;
+        }
+
+        return rootLayer;
+    };
+
     $ax.move.MoveWidget = function (id, x, y, options, to, animationCompleteCallback, shouldFire, jobj, moveInfo) {
         $ax.drag.LogMovedWidgetForDrag(id, options.dragInfo);
 
         if(!moveInfo) moveInfo = _getMoveInfo(id, x, y, to, options, jobj);
 
         jobj = moveInfo.jobj;
-        if($ax.public.fn.isCompoundVectorHtml(jobj[0])) {
-            var children = jobj[0].children;
-            var components = {};
-            var numComponents = 0;
-            for (var i = 0; i < children.length; i++) {
-                if($ax.public.fn.isCompoundVectorComponentHtml(children[i])) {
-                    components[numComponents] = children[i];
-                    numComponents ++;
-                }
-            }
-            var rootLayer;
-            if (moveInfo.rootLayer) {
-                rootLayer = moveInfo.rootLayer;
-                delete moveInfo.rootLayer;
-            }
 
-            for (i = 0; i < numComponents; i++) {
-                jobj = $jobj(components[i].id);
-                if(rootLayer && i == numComponents - 1) moveInfo.rootLayer = rootLayer;
+        _moveElement(id, options, animationCompleteCallback, shouldFire, jobj, moveInfo);
 
-                _moveElement(id, options, animationCompleteCallback, i == numComponents - 1, jobj, moveInfo);
-            }
-        } else _moveElement(id, options, animationCompleteCallback, shouldFire, jobj, moveInfo) ;
+        $ax.event.raiseSyntheticEvent(id, "onMove");
+        var object = $obj(id);
+        if(object && $ax.public.fn.IsLayer(object.type)) {
+            var childrenIds = $ax.public.fn.getLayerChildrenDeep(id, true);
+            for(var i = 0; i < childrenIds.length; i++) $ax.event.raiseSyntheticEvent(childrenIds[i], 'onMove');
+        }
     };
 
     var _moveElement = function (id, options, animationCompleteCallback, shouldFire,  jobj, moveInfo){
@@ -107,7 +101,7 @@
         //  Wait to try removing it until more stable.
         var rootLayer = moveInfo.rootLayer;
 
-        var query = jobj.add($jobj(id + '_ann')).add($jobj(id + '_ref'));
+        var query = $addAll(jobj, id);
         if(options.easing == 'none') {
             query.animate(cssStyles, { duration: 0, queue: false });
 
@@ -144,6 +138,7 @@
         moveInfo.options.easing = 'none';
         moveInfo.options.duration = 0;
         widgetMoveInfo[id] = moveInfo;
+        $ax.event.raiseSyntheticEvent(id, "onMove");
     };
 
     //rotationDegree: total degree to rotate
@@ -159,7 +154,7 @@
                 $ax.action.fireAnimationFromQueue(id, $ax.action.queueTypes.move);
             }
         } else {
-            elem.animate({ top: '+=' + moveDelta.y, left: '+=' + moveDelta.x }, {
+            $jobj(id).animate({ top: '+=' + moveDelta.y, left: '+=' + moveDelta.x }, {
                 duration: duration,
                 easing: easing,
                 queue: false,
@@ -175,65 +170,71 @@
     }
 
 
-    _move.circularMove = function (id, degreeDelta, centerPoint, moveDelta, rotatableMove, resizeOffset, easing, duration, fireAnimationQueue, completionCallback) {
+    _move.circularMove = function (id, degreeDelta, centerPoint, moveDelta, rotatableMove, resizeOffset, options, fireAnimationQueue, completionCallback) {
         var elem = $jobj(id);
+        var moveInfo = $ax.move.RegisterMoveInfo(id, moveDelta.x, moveDelta.y, false, options);
         // If not rotating, still need to check moveDelta and may need to handle that.
         if (degreeDelta === 0) {
-            _noRotateOnlyMove(id, moveDelta, rotatableMove, fireAnimationQueue, easing, duration, completionCallback);
+            _noRotateOnlyMove(id, moveDelta, rotatableMove, fireAnimationQueue, options.easing, options.duration, completionCallback);
             return;
         }
 
+        var stepFunc = function(newDegree) {
+            var deg = newDegree - rotation.degree;
+            var widgetCenter = $ax.public.fn.getWidgetBoundingRect(id).centerPoint;
+            //console.log("widget center of " + id + " x " + widgetCenter.x + " y " + widgetCenter.y);
+            var widgetNewCenter = $axure.fn.getPointAfterRotate(deg, widgetCenter, centerPoint);
+
+            // Start by getting the move not related to rotation, and make sure to update center point to move with it.
+            var ratio = deg / degreeDelta;
+
+            var xdelta = (moveDelta.x + rotatableMove.x) * ratio;
+            var ydelta = (moveDelta.y + rotatableMove.y) * ratio;
+            if(resizeOffset) {
+                var resizeShift = {};
+                resizeShift.x = resizeOffset.x * ratio;
+                resizeShift.y = resizeOffset.y * ratio;
+                $axure.fn.getPointAfterRotate(rotation.degree, resizeShift, { x: 0, y: 0 });
+                xdelta += resizeShift.x;
+                ydelta += resizeShift.y;
+            }
+            centerPoint.x += xdelta;
+            centerPoint.y += ydelta;
+
+            // Now for the move that is rotatable, it must be rotated
+            rotatableMove = $axure.fn.getPointAfterRotate(deg, rotatableMove, { x: 0, y: 0 });
+
+            // Now add in circular move to the mix.
+            xdelta += widgetNewCenter.x - widgetCenter.x;
+            ydelta += widgetNewCenter.y - widgetCenter.y;
+
+            if(xdelta < 0) elem.css('left', '-=' + -xdelta);
+            else if(xdelta > 0) elem.css('left', '+=' + xdelta);
+
+            if(ydelta < 0) elem.css('top', '-=' + -ydelta);
+            else if(ydelta > 0) elem.css('top', '+=' + ydelta);
+        };
+
+        var onComplete = function() {
+            if(fireAnimationQueue) $ax.action.fireAnimationFromQueue(id, $ax.action.queueTypes.move);
+            if(completionCallback) completionCallback();
+            if(moveInfo.rootLayer) $ax.visibility.popContainer(moveInfo.rootLayer, false);
+        };
+
         var rotation = { degree: 0 };
 
-        if(!easing || easing === 'none' || duration <= 0) {
-            duration = 1;
-            easing = 'linear'; //it doesn't matter anymore here...
+        if(!options.easing || options.easing === 'none' || options.duration <= 0) {
+            stepFunc(degreeDelta);
+            onComplete();
+        } else {
+            $(rotation).animate({ degree: degreeDelta }, {
+                duration: options.duration,
+                easing: options.easing,
+                queue: false,
+                step: stepFunc,
+                complete: onComplete
+            });
         }
-
-        $(rotation).animate({ degree: degreeDelta }, {
-            duration: duration,
-            easing: easing,
-            queue: false,
-            step: function(newDegree) {
-                var deg = newDegree - rotation.degree;
-                var widgetCenter = $ax.public.fn.getWidgetBoundingRect(id).centerPoint;
-                //console.log("widget center of " + id + " x " + widgetCenter.x + " y " + widgetCenter.y);
-                var widgetNewCenter = _getPointAfterRotate(deg, widgetCenter, centerPoint);
-
-                // Start by getting the move not related to rotation, and make sure to update center point to move with it.
-                var ratio = deg / degreeDelta;
-
-                var xdelta = (moveDelta.x + rotatableMove.x) * ratio;
-                var ydelta = (moveDelta.y + rotatableMove.y) * ratio;
-                if(resizeOffset) {
-                    var resizeShift = {};
-                    resizeShift.x = resizeOffset.x * ratio;
-                    resizeShift.y = resizeOffset.y * ratio;
-                    _getPointAfterRotate(rotation.degree, resizeShift, { x: 0, y: 0 });
-                    xdelta += resizeShift.x;
-                    ydelta += resizeShift.y;
-                }
-                centerPoint.x += xdelta;
-                centerPoint.y += ydelta;
-
-                // Now for the move that is rotatable, it must be rotated
-                rotatableMove = _getPointAfterRotate(deg, rotatableMove, { x: 0, y: 0 });
-
-                // Now add in circular move to the mix.
-                xdelta += widgetNewCenter.x - widgetCenter.x;
-                ydelta += widgetNewCenter.y - widgetCenter.y;
-
-                if(xdelta < 0) elem.css('left', '-=' + -xdelta);
-                else if(xdelta > 0) elem.css('left', '+=' + xdelta);
-
-                if(ydelta < 0) elem.css('top', '-=' + -ydelta);
-                else if(ydelta > 0) elem.css('top', '+=' + ydelta);
-            },
-            complete: function() {
-                if(fireAnimationQueue) $ax.action.fireAnimationFromQueue(id, $ax.action.queueTypes.move);
-                if(completionCallback) completionCallback();
-            }
-        });
     };
 
     //rotate a widget by degree, center is 50% 50%
@@ -248,30 +249,37 @@
 
         var query = $jobj(id).add($jobj(id + '_ann')).add($jobj(id + '_ref'));
 
-        //if no animation, setting duration to 1, to prevent RangeError in rotation loops without animation
-        if(!easing || easing === 'none' || duration <= 0) {
-            duration = 1;
-            easing = 'linear'; //it doesn't matter anymore here...
-        }
+        var stepFunc = function(now) {
+            var degreeDelta = now - rotation.degree;
+            var newDegree = currentDegree + degreeDelta;
+            query.css($ax.public.fn.setTransformHowever("rotate(" + newDegree + "deg)"));
+            currentDegree = newDegree;
+        };
+
+        var onComplete = function() {
+            if(shouldFire) {
+                $ax.action.fireAnimationFromQueue($ax.public.fn.compoundIdFromComponent(id), $ax.action.queueTypes.rotate);
+            }
+            if(completionCallback) completionCallback();
+        };
 
         var rotation = { degree: 0 };
-        $(rotation).animate({ degree: degree }, {
-            duration: duration,
-            easing: easing,
-            queue: false,
-            step: function (now) {
-                var degreeDelta = now - rotation.degree;
-                var newDegree = currentDegree + degreeDelta;
-                query.css($ax.public.fn.setTransformHowever("rotate(" + newDegree + "deg)"));
-                currentDegree = newDegree;
-            },
-            complete: function() {
-                if (shouldFire) {
-                    $ax.action.fireAnimationFromQueue($ax.public.fn.compoundIdFromComponent(id), $ax.action.queueTypes.rotate);
-                }
-                if(completionCallback) completionCallback();
-            }
-        });
+        
+        
+        //if no animation, setting duration to 1, to prevent RangeError in rotation loops without animation
+        if(!easing || easing === 'none' || duration <= 0) {
+            stepFunc(degree);
+            onComplete();
+        } else {
+            $(rotation).animate({ degree: degree }, {
+                duration: duration,
+                easing: easing,
+                queue: false,
+                step: stepFunc,
+                complete: onComplete
+            
+            });
+        }
     };
 
     _move.compoundRotateAround = function (id, degreeDelta, centerPoint, moveDelta, rotatableMove, resizeOffset, easing, duration, fireAnimationQueue, completionCallback) {
@@ -308,7 +316,7 @@
                     var resizeShift = {};
                     resizeShift.x = resizeOffset.x * ratio;
                     resizeShift.y = resizeOffset.y * ratio;
-                    _getPointAfterRotate(rotation.degree, resizeShift, { x: 0, y: 0 });
+                    $axure.fn.getPointAfterRotate(rotation.degree, resizeShift, { x: 0, y: 0 });
                     xdelta += resizeShift.x;
                     ydelta += resizeShift.y;
                 }
@@ -318,7 +326,7 @@
                     { m11: transform[0], m21: transform[1], m12: transform[2], m22: transform[3] });
 
                 //console.log("widget center of " + id + " x " + widgetCenter.x + " y " + widgetCenter.y);
-                var widgetNewCenter = _getPointAfterRotate(deg, componentCenter, centerPoint);
+                var widgetNewCenter = $axure.fn.getPointAfterRotate(deg, componentCenter, centerPoint);
                 var newMatrix = $ax.public.fn.matrixString(compositionTransform.m11, compositionTransform.m21, compositionTransform.m12, compositionTransform.m22,
                     widgetNewCenter.x - originalCenter.x + xdelta, widgetNewCenter.y - originalCenter.y + ydelta);
                 elem.css($ax.public.fn.setTransformHowever(newMatrix));
@@ -333,18 +341,13 @@
         });
     };
 
-    var _getPointAfterRotate = function(angleInDegrees, pointToRotate, centerPoint) {
-        var displacement = $ax.public.fn.vectorMinus(pointToRotate, centerPoint);
-        var rotationMatrix = $ax.public.fn.rotationMatrix(angleInDegrees);
-        rotationMatrix.tx = centerPoint.x;
-        rotationMatrix.ty = centerPoint.y;
-        return $ax.public.fn.matrixMultiply(rotationMatrix, displacement);
-    };
-
-
     var _getRotationDegree = _move.getRotationDegree = function(elementId) {
-        var element = document.getElementById(elementId);
+        if($ax.public.fn.IsLayer($obj(elementId).type)) {
+            return $jobj(elementId).data('layerDegree');
+        }
 
+        var element = document.getElementById(elementId);
+        if(element == null) return NaN;
         //var transformString = element.style.transform ||
         //    element.style.OTransform ||
         //    element.style.msTransform ||

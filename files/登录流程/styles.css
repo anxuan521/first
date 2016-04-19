@@ -49,6 +49,7 @@
   border-width:1px;
   border-style:solid;
   border-color:rgba(161, 161, 161, 1);
+  border-radius:0px;
   -moz-box-shadow:none;
   -webkit-box-shadow:none;
   box-shadow:none;
@@ -98,6 +99,8 @@
   height:78px;
   background:inherit;
   background-color:rgba(255, 255, 255, 1);
+  border:none;
+  border-radius:0px;
   -moz-box-shadow:none;
   -webkit-box-shadow:none;
   box-shadow:none;
@@ -135,6 +138,8 @@
   height:28px;
   background:inherit;
   background-color:rgba(255, 255, 255, 0);
+  border:none;
+  border-radius:0px;
   -moz-box-shadow:none;
   -webkit-box-shadow:none;
   box-shadow:none;
@@ -163,6 +168,8 @@
   height:78px;
   background:inherit;
   background-color:rgba(255, 255, 255, 1);
+  border:none;
+  border-radius:0px;
   -moz-box-shadow:none;
   -webkit-box-shadow:none;
   box-shadow:none;
@@ -200,6 +207,8 @@
   height:28px;
   background:inherit;
   background-color:rgba(255, 255, 255, 0);
+  border:none;
+  border-radius:0px;
   -moz-box-shadow:none;
   -webkit-box-shadow:none;
   box-shadow:none;
@@ -228,6 +237,8 @@
   height:28px;
   background:inherit;
   background-color:rgba(255, 255, 255, 0);
+  border:none;
+  border-radius:0px;
   -moz-box-shadow:none;
   -webkit-box-shadow:none;
   box-shadow:none;
@@ -262,6 +273,8 @@
   height:78px;
   background:inherit;
   background-color:rgba(204, 153, 0, 1);
+  border:none;
+  border-radius:0px;
   -moz-box-shadow:none;
   -webkit-box-shadow:none;
   box-shadow:none;
@@ -298,6 +311,8 @@
   height:28px;
   background:inherit;
   background-color:rgba(255, 255, 255, 0);
+  border:none;
+  border-radius:0px;
   -moz-box-shadow:none;
   -webkit-box-shadow:none;
   box-shadow:none;
@@ -357,6 +372,7 @@
   border-width:1px;
   border-style:solid;
   border-color:rgba(161, 161, 161, 1);
+  border-radius:0px;
   -moz-box-shadow:none;
   -webkit-box-shadow:none;
   box-shadow:none;
@@ -407,6 +423,7 @@
   border-width:1px;
   border-style:solid;
   border-color:rgba(161, 161, 161, 1);
+  border-radius:0px;
   -moz-box-shadow:none;
   -webkit-box-shadow:none;
   box-shadow:none;
@@ -434,6 +451,8 @@
   height:78px;
   background:inherit;
   background-color:rgba(127, 186, 0, 1);
+  border:none;
+  border-radius:0px;
   -moz-box-shadow:none;
   -webkit-box-shadow:none;
   box-shadow:none;
@@ -470,6 +489,8 @@
   height:78px;
   background:inherit;
   background-color:rgba(204, 153, 0, 1);
+  border:none;
+  border-radius:0px;
   -moz-box-shadow:none;
   -webkit-box-shadow:none;
   box-shadow:none;
@@ -547,6 +568,7 @@
   border-width:1px;
   border-style:solid;
   border-color:rgba(161, 161, 161, 1);
+  border-radius:0px;
   -moz-box-shadow:none;
   -webkit-box-shadow:none;
   box-shadow:none;
@@ -574,6 +596,8 @@
   height:78px;
   background:inherit;
   background-color:rgba(127, 186, 0, 1);
+  border:none;
+  border-radius:0px;
   -moz-box-shadow:none;
   -webkit-box-shadow:none;
   box-shadow:none;
@@ -610,6 +634,8 @@
   height:78px;
   background:inherit;
   background-color:rgba(204, 153, 0, 1);
+  border:none;
+  border-radius:0px;
   -moz-box-shadow:none;
   -webkit-box-shadow:none;
   box-shadow:none;
@@ -646,6 +672,8 @@
   height:78px;
   background:inherit;
   background-color:rgba(242, 242, 242, 1);
+  border:none;
+  border-radius:0px;
   -moz-box-shadow:none;
   -webkit-box-shadow:none;
   box-shadow:none;
@@ -683,6 +711,8 @@
   height:78px;
   background:inherit;
   background-color:rgba(242, 242, 242, 1);
+  border:none;
+  border-radius:0px;
   -moz-box-shadow:none;
   -webkit-box-shadow:none;
   box-shadow:none;
@@ -742,6 +772,8 @@
   height:28px;
   background:inherit;
   background-color:rgba(255, 255, 255, 0);
+  border:none;
+  border-radius:0px;
   -moz-box-shadow:none;
   -webkit-box-shadow:none;
   box-shadow:none;
@@ -770,6 +802,8 @@
   height:28px;
   background:inherit;
   background-color:rgba(255, 255, 255, 0);
+  border:none;
+  border-radius:0px;
   -moz-box-shadow:none;
   -webkit-box-shadow:none;
   box-shadow:none;
@@ -848,6 +882,7 @@
   border-width:1px;
   border-style:solid;
   border-color:rgba(161, 161, 161, 1);
+  border-radius:0px;
   -moz-box-shadow:none;
   -webkit-box-shadow:none;
   box-shadow:none;
@@ -875,6 +910,8 @@
   height:78px;
   background:inherit;
   background-color:rgba(242, 242, 242, 1);
+  border:none;
+  border-radius:0px;
   -moz-box-shadow:none;
   -webkit-box-shadow:none;
   box-shadow:none;
@@ -912,6 +949,8 @@
   height:78px;
   background:inherit;
   background-color:rgba(242, 242, 242, 1);
+  border:none;
+  border-radius:0px;
   -moz-box-shadow:none;
   -webkit-box-shadow:none;
   box-shadow:none;
@@ -971,6 +1010,8 @@
   height:28px;
   background:inherit;
   background-color:rgba(255, 255, 255, 0);
+  border:none;
+  border-radius:0px;
   -moz-box-shadow:none;
   -webkit-box-shadow:none;
   box-shadow:none;
@@ -999,6 +1040,8 @@
   height:28px;
   background:inherit;
   background-color:rgba(255, 255, 255, 0);
+  border:none;
+  border-radius:0px;
   -moz-box-shadow:none;
   -webkit-box-shadow:none;
   box-shadow:none;
@@ -1027,6 +1070,8 @@
   height:78px;
   background:inherit;
   background-color:rgba(242, 242, 242, 1);
+  border:none;
+  border-radius:0px;
   -moz-box-shadow:none;
   -webkit-box-shadow:none;
   box-shadow:none;
@@ -1064,6 +1109,8 @@
   height:28px;
   background:inherit;
   background-color:rgba(255, 255, 255, 0);
+  border:none;
+  border-radius:0px;
   -moz-box-shadow:none;
   -webkit-box-shadow:none;
   box-shadow:none;
@@ -1092,6 +1139,8 @@
   height:78px;
   background:inherit;
   background-color:rgba(204, 153, 0, 1);
+  border:none;
+  border-radius:0px;
   -moz-box-shadow:none;
   -webkit-box-shadow:none;
   box-shadow:none;
@@ -1169,6 +1218,7 @@
   border-width:1px;
   border-style:solid;
   border-color:rgba(161, 161, 161, 1);
+  border-radius:0px;
   -moz-box-shadow:none;
   -webkit-box-shadow:none;
   box-shadow:none;
@@ -1200,6 +1250,7 @@
   border-width:1px;
   border-style:solid;
   border-color:rgba(201, 201, 201, 1);
+  border-radius:0px;
   -moz-box-shadow:none;
   -webkit-box-shadow:none;
   box-shadow:none;
@@ -1227,6 +1278,8 @@
   height:33px;
   background:inherit;
   background-color:rgba(255, 255, 255, 0);
+  border:none;
+  border-radius:0px;
   -moz-box-shadow:none;
   -webkit-box-shadow:none;
   box-shadow:none;
@@ -1280,6 +1333,8 @@
   height:28px;
   background:inherit;
   background-color:rgba(255, 255, 255, 0);
+  border:none;
+  border-radius:0px;
   -moz-box-shadow:none;
   -webkit-box-shadow:none;
   box-shadow:none;
@@ -1308,6 +1363,8 @@
   height:50px;
   background:inherit;
   background-color:rgba(242, 242, 242, 1);
+  border:none;
+  border-radius:0px;
   -moz-box-shadow:none;
   -webkit-box-shadow:none;
   box-shadow:none;
@@ -1345,6 +1402,8 @@
   height:26px;
   background:inherit;
   background-color:rgba(255, 255, 255, 0);
+  border:none;
+  border-radius:0px;
   -moz-box-shadow:none;
   -webkit-box-shadow:none;
   box-shadow:none;
@@ -1381,6 +1440,8 @@
   height:26px;
   background:inherit;
   background-color:rgba(255, 255, 255, 0);
+  border:none;
+  border-radius:0px;
   -moz-box-shadow:none;
   -webkit-box-shadow:none;
   box-shadow:none;
@@ -1417,6 +1478,8 @@
   height:50px;
   background:inherit;
   background-color:rgba(242, 242, 242, 1);
+  border:none;
+  border-radius:0px;
   -moz-box-shadow:none;
   -webkit-box-shadow:none;
   box-shadow:none;
@@ -1454,6 +1517,8 @@
   height:26px;
   background:inherit;
   background-color:rgba(255, 255, 255, 0);
+  border:none;
+  border-radius:0px;
   -moz-box-shadow:none;
   -webkit-box-shadow:none;
   box-shadow:none;
@@ -1490,6 +1555,8 @@
   height:26px;
   background:inherit;
   background-color:rgba(255, 255, 255, 0);
+  border:none;
+  border-radius:0px;
   -moz-box-shadow:none;
   -webkit-box-shadow:none;
   box-shadow:none;
@@ -1526,6 +1593,8 @@
   height:28px;
   background:inherit;
   background-color:rgba(255, 255, 255, 0);
+  border:none;
+  border-radius:0px;
   -moz-box-shadow:none;
   -webkit-box-shadow:none;
   box-shadow:none;
@@ -1554,6 +1623,8 @@
   height:50px;
   background:inherit;
   background-color:rgba(242, 242, 242, 1);
+  border:none;
+  border-radius:0px;
   -moz-box-shadow:none;
   -webkit-box-shadow:none;
   box-shadow:none;
@@ -1591,6 +1662,8 @@
   height:26px;
   background:inherit;
   background-color:rgba(255, 255, 255, 0);
+  border:none;
+  border-radius:0px;
   -moz-box-shadow:none;
   -webkit-box-shadow:none;
   box-shadow:none;
@@ -1627,6 +1700,8 @@
   height:26px;
   background:inherit;
   background-color:rgba(255, 255, 255, 0);
+  border:none;
+  border-radius:0px;
   -moz-box-shadow:none;
   -webkit-box-shadow:none;
   box-shadow:none;
@@ -1663,6 +1738,8 @@
   height:50px;
   background:inherit;
   background-color:rgba(242, 242, 242, 1);
+  border:none;
+  border-radius:0px;
   -moz-box-shadow:none;
   -webkit-box-shadow:none;
   box-shadow:none;
@@ -1700,6 +1777,8 @@
   height:26px;
   background:inherit;
   background-color:rgba(255, 255, 255, 0);
+  border:none;
+  border-radius:0px;
   -moz-box-shadow:none;
   -webkit-box-shadow:none;
   box-shadow:none;
@@ -1736,6 +1815,8 @@
   height:26px;
   background:inherit;
   background-color:rgba(255, 255, 255, 0);
+  border:none;
+  border-radius:0px;
   -moz-box-shadow:none;
   -webkit-box-shadow:none;
   box-shadow:none;
@@ -1772,6 +1853,8 @@
   height:50px;
   background:inherit;
   background-color:rgba(242, 242, 242, 1);
+  border:none;
+  border-radius:0px;
   -moz-box-shadow:none;
   -webkit-box-shadow:none;
   box-shadow:none;
@@ -1809,6 +1892,8 @@
   height:26px;
   background:inherit;
   background-color:rgba(255, 255, 255, 0);
+  border:none;
+  border-radius:0px;
   -moz-box-shadow:none;
   -webkit-box-shadow:none;
   box-shadow:none;
@@ -1845,6 +1930,8 @@
   height:26px;
   background:inherit;
   background-color:rgba(255, 255, 255, 0);
+  border:none;
+  border-radius:0px;
   -moz-box-shadow:none;
   -webkit-box-shadow:none;
   box-shadow:none;
@@ -1881,6 +1968,8 @@
   height:50px;
   background:inherit;
   background-color:rgba(242, 242, 242, 1);
+  border:none;
+  border-radius:0px;
   -moz-box-shadow:none;
   -webkit-box-shadow:none;
   box-shadow:none;
@@ -1918,6 +2007,8 @@
   height:26px;
   background:inherit;
   background-color:rgba(255, 255, 255, 0);
+  border:none;
+  border-radius:0px;
   -moz-box-shadow:none;
   -webkit-box-shadow:none;
   box-shadow:none;
@@ -1954,6 +2045,8 @@
   height:26px;
   background:inherit;
   background-color:rgba(255, 255, 255, 0);
+  border:none;
+  border-radius:0px;
   -moz-box-shadow:none;
   -webkit-box-shadow:none;
   box-shadow:none;
@@ -1990,6 +2083,8 @@
   height:50px;
   background:inherit;
   background-color:rgba(242, 242, 242, 1);
+  border:none;
+  border-radius:0px;
   -moz-box-shadow:none;
   -webkit-box-shadow:none;
   box-shadow:none;
@@ -2027,6 +2122,8 @@
   height:26px;
   background:inherit;
   background-color:rgba(255, 255, 255, 0);
+  border:none;
+  border-radius:0px;
   -moz-box-shadow:none;
   -webkit-box-shadow:none;
   box-shadow:none;
@@ -2063,6 +2160,8 @@
   height:26px;
   background:inherit;
   background-color:rgba(255, 255, 255, 0);
+  border:none;
+  border-radius:0px;
   -moz-box-shadow:none;
   -webkit-box-shadow:none;
   box-shadow:none;
@@ -2099,6 +2198,8 @@
   height:50px;
   background:inherit;
   background-color:rgba(242, 242, 242, 1);
+  border:none;
+  border-radius:0px;
   -moz-box-shadow:none;
   -webkit-box-shadow:none;
   box-shadow:none;
@@ -2136,6 +2237,8 @@
   height:26px;
   background:inherit;
   background-color:rgba(255, 255, 255, 0);
+  border:none;
+  border-radius:0px;
   -moz-box-shadow:none;
   -webkit-box-shadow:none;
   box-shadow:none;
@@ -2172,6 +2275,8 @@
   height:26px;
   background:inherit;
   background-color:rgba(255, 255, 255, 0);
+  border:none;
+  border-radius:0px;
   -moz-box-shadow:none;
   -webkit-box-shadow:none;
   box-shadow:none;
@@ -2208,6 +2313,8 @@
   height:50px;
   background:inherit;
   background-color:rgba(242, 242, 242, 1);
+  border:none;
+  border-radius:0px;
   -moz-box-shadow:none;
   -webkit-box-shadow:none;
   box-shadow:none;
@@ -2245,6 +2352,8 @@
   height:26px;
   background:inherit;
   background-color:rgba(255, 255, 255, 0);
+  border:none;
+  border-radius:0px;
   -moz-box-shadow:none;
   -webkit-box-shadow:none;
   box-shadow:none;
@@ -2281,6 +2390,8 @@
   height:26px;
   background:inherit;
   background-color:rgba(255, 255, 255, 0);
+  border:none;
+  border-radius:0px;
   -moz-box-shadow:none;
   -webkit-box-shadow:none;
   box-shadow:none;
@@ -2317,6 +2428,8 @@
   height:50px;
   background:inherit;
   background-color:rgba(242, 242, 242, 1);
+  border:none;
+  border-radius:0px;
   -moz-box-shadow:none;
   -webkit-box-shadow:none;
   box-shadow:none;
@@ -2354,6 +2467,8 @@
   height:26px;
   background:inherit;
   background-color:rgba(255, 255, 255, 0);
+  border:none;
+  border-radius:0px;
   -moz-box-shadow:none;
   -webkit-box-shadow:none;
   box-shadow:none;
@@ -2390,6 +2505,8 @@
   height:26px;
   background:inherit;
   background-color:rgba(255, 255, 255, 0);
+  border:none;
+  border-radius:0px;
   -moz-box-shadow:none;
   -webkit-box-shadow:none;
   box-shadow:none;
@@ -2458,6 +2575,7 @@
   border-width:1px;
   border-style:solid;
   border-color:rgba(161, 161, 161, 1);
+  border-radius:0px;
   -moz-box-shadow:none;
   -webkit-box-shadow:none;
   box-shadow:none;
@@ -2485,6 +2603,8 @@
   height:78px;
   background:inherit;
   background-color:rgba(127, 186, 0, 1);
+  border:none;
+  border-radius:0px;
   -moz-box-shadow:none;
   -webkit-box-shadow:none;
   box-shadow:none;
@@ -2521,6 +2641,8 @@
   height:78px;
   background:inherit;
   background-color:rgba(204, 153, 0, 1);
+  border:none;
+  border-radius:0px;
   -moz-box-shadow:none;
   -webkit-box-shadow:none;
   box-shadow:none;
@@ -2557,6 +2679,8 @@
   height:78px;
   background:inherit;
   background-color:rgba(242, 242, 242, 1);
+  border:none;
+  border-radius:0px;
   -moz-box-shadow:none;
   -webkit-box-shadow:none;
   box-shadow:none;
@@ -2594,6 +2718,8 @@
   height:28px;
   background:inherit;
   background-color:rgba(255, 255, 255, 0);
+  border:none;
+  border-radius:0px;
   -moz-box-shadow:none;
   -webkit-box-shadow:none;
   box-shadow:none;
@@ -2682,6 +2808,8 @@
   height:78px;
   background:inherit;
   background-color:rgba(242, 242, 242, 1);
+  border:none;
+  border-radius:0px;
   -moz-box-shadow:none;
   -webkit-box-shadow:none;
   box-shadow:none;
@@ -2719,6 +2847,8 @@
   height:78px;
   background:inherit;
   background-color:rgba(242, 242, 242, 1);
+  border:none;
+  border-radius:0px;
   -moz-box-shadow:none;
   -webkit-box-shadow:none;
   box-shadow:none;
@@ -2756,6 +2886,8 @@
   height:28px;
   background:inherit;
   background-color:rgba(255, 255, 255, 0);
+  border:none;
+  border-radius:0px;
   -moz-box-shadow:none;
   -webkit-box-shadow:none;
   box-shadow:none;
@@ -2807,6 +2939,8 @@
   height:28px;
   background:inherit;
   background-color:rgba(255, 255, 255, 0);
+  border:none;
+  border-radius:0px;
   -moz-box-shadow:none;
   -webkit-box-shadow:none;
   box-shadow:none;
@@ -2858,6 +2992,8 @@
   height:78px;
   background:inherit;
   background-color:rgba(242, 242, 242, 1);
+  border:none;
+  border-radius:0px;
   -moz-box-shadow:none;
   -webkit-box-shadow:none;
   box-shadow:none;
@@ -2895,6 +3031,8 @@
   height:28px;
   background:inherit;
   background-color:rgba(255, 255, 255, 0);
+  border:none;
+  border-radius:0px;
   -moz-box-shadow:none;
   -webkit-box-shadow:none;
   box-shadow:none;
@@ -2942,6 +3080,8 @@
   height:1024px;
   background:inherit;
   background-color:rgba(242, 242, 242, 1);
+  border:none;
+  border-radius:0px;
   -moz-box-shadow:none;
   -webkit-box-shadow:none;
   box-shadow:none;
@@ -2969,6 +3109,8 @@
   height:162px;
   background:inherit;
   background-color:rgba(228, 228, 228, 1);
+  border:none;
+  border-radius:0px;
   -moz-box-shadow:none;
   -webkit-box-shadow:none;
   box-shadow:none;
@@ -3006,6 +3148,8 @@
   height:140px;
   background:inherit;
   background-color:rgba(255, 255, 255, 1);
+  border:none;
+  border-radius:0px;
   -moz-box-shadow:none;
   -webkit-box-shadow:none;
   box-shadow:none;
@@ -3042,6 +3186,8 @@
   height:140px;
   background:inherit;
   background-color:rgba(255, 255, 255, 1);
+  border:none;
+  border-radius:0px;
   -moz-box-shadow:none;
   -webkit-box-shadow:none;
   box-shadow:none;
@@ -3078,6 +3224,8 @@
   height:140px;
   background:inherit;
   background-color:rgba(255, 255, 255, 1);
+  border:none;
+  border-radius:0px;
   -moz-box-shadow:none;
   -webkit-box-shadow:none;
   box-shadow:none;
@@ -3114,6 +3262,8 @@
   height:140px;
   background:inherit;
   background-color:rgba(255, 255, 255, 1);
+  border:none;
+  border-radius:0px;
   -moz-box-shadow:none;
   -webkit-box-shadow:none;
   box-shadow:none;
@@ -3172,6 +3322,8 @@
   height:48px;
   background:inherit;
   background-color:rgba(242, 242, 242, 1);
+  border:none;
+  border-radius:0px;
   -moz-box-shadow:none;
   -webkit-box-shadow:none;
   box-shadow:none;
@@ -3199,6 +3351,8 @@
   height:91px;
   background:inherit;
   background-color:rgba(204, 153, 0, 1);
+  border:none;
+  border-radius:0px;
   -moz-box-shadow:none;
   -webkit-box-shadow:none;
   box-shadow:none;
@@ -3235,6 +3389,8 @@
   height:60px;
   background:inherit;
   background-color:rgba(102, 102, 102, 1);
+  border:none;
+  border-radius:0px;
   -moz-box-shadow:none;
   -webkit-box-shadow:none;
   box-shadow:none;
@@ -3262,6 +3418,8 @@
   height:36px;
   background:inherit;
   background-color:rgba(255, 255, 255, 0);
+  border:none;
+  border-radius:0px;
   -moz-box-shadow:none;
   -webkit-box-shadow:none;
   box-shadow:none;
@@ -3355,6 +3513,7 @@
   border-width:1px;
   border-style:solid;
   border-color:rgba(161, 161, 161, 1);
+  border-radius:0px;
   -moz-box-shadow:none;
   -webkit-box-shadow:none;
   box-shadow:none;
@@ -3383,6 +3542,8 @@
   height:156px;
   background:inherit;
   background-color:rgba(255, 255, 255, 1);
+  border:none;
+  border-radius:0px;
   -moz-box-shadow:none;
   -webkit-box-shadow:none;
   box-shadow:none;
@@ -3419,6 +3580,8 @@
   height:62px;
   background:inherit;
   background-color:rgba(228, 228, 228, 1);
+  border:none;
+  border-radius:0px;
   -moz-box-shadow:none;
   -webkit-box-shadow:none;
   box-shadow:none;
@@ -3456,6 +3619,8 @@
   height:36px;
   background:inherit;
   background-color:rgba(255, 255, 255, 0);
+  border:none;
+  border-radius:0px;
   -moz-box-shadow:none;
   -webkit-box-shadow:none;
   box-shadow:none;
@@ -3509,6 +3674,8 @@
   height:28px;
   background:inherit;
   background-color:rgba(255, 255, 255, 0);
+  border:none;
+  border-radius:0px;
   -moz-box-shadow:none;
   -webkit-box-shadow:none;
   box-shadow:none;
@@ -3537,6 +3704,8 @@
   height:78px;
   background:inherit;
   background-color:rgba(127, 186, 0, 1);
+  border:none;
+  border-radius:0px;
   -moz-box-shadow:none;
   -webkit-box-shadow:none;
   box-shadow:none;

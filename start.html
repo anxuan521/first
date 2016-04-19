@@ -60,8 +60,11 @@
 
     </style>
     <script type="text/javascript" language="JavaScript"><!--
+        var SITEMAP_COLLAPSE_VAR_NAME = 'c';
+        var PLUGIN_VAR_NAME = 'g';
         var FOOTNOTES_VAR_NAME = 'fn';
-        var lastLeftPanelWidth = 305;
+        var ADAPTIVE_VIEW_VAR_NAME = 'view';
+        var lastLeftPanelWidth = 295;
         var toolBarOnly = true;
 
         // isolate scope
@@ -73,10 +76,11 @@
             _settings.projectId = configuration.prototypeId;
             _settings.isAxshare = configuration.isAxshare;
             _settings.loadFeedbackPlugin = configuration.loadFeedbackPlugin;
-            var cHash = getHashStringVar("c");
+            var cHash = getHashStringVar(SITEMAP_COLLAPSE_VAR_NAME);
             _settings.startCollapsed = cHash == "1";
             if(cHash == "2") closePlayer();
-            var gHash = getHashStringVar("g");
+            var gHash = getHashStringVar(PLUGIN_VAR_NAME);
+            if(gHash == "") gHash = 1;
             _settings.startPluginGid = gHash;
 
             $axure.player.settings = _settings;
@@ -150,6 +154,10 @@
                             viewport.setAttribute('content', 'width=device-width, initial-scale=1.0');
                             resizeContent();
                         }, false);
+
+                        $axure.page.bind('load.start', function() {
+                            resizeContent();
+                        });
                     }
                 }
 
@@ -164,30 +172,6 @@
 
                 var mainFrame = document.getElementById("mainFrame");
                 mainFrame.contentWindow.location.href = getInitialUrl();
-            }
-        
-            var getInitialUrl = $axure.player.getInitialUrl = function() {
-                var pageName = getHashStringVar("p");
-                if(pageName.length > 0) return pageName + ".html";
-                else {
-                    var url = getFirstPageUrl($axure.document.sitemap.rootNodes);
-                    return (url ? url : "about:blank");
-                }
-            }
-
-            function getFirstPageUrl(nodes) {
-                for (var i = 0; i < nodes.length; i++) {
-                    var node = nodes[i];
-                    if (node.url) return node.url;
-                    else {
-                        var hasChildren = (node.children && node.children.length > 0);
-                        if (hasChildren) {
-                            var url = getFirstPageUrl(node.children);
-                            if (url) return url;
-                        }
-                    }
-                }
-                return null;
             }
 
             function initializeLogo() {
@@ -235,13 +219,13 @@
                 $(document).trigger('ContainerHeightChange',[controlContainerHeight]);
 
                 if(MOBILE_DEVICE) {
-                    $axure.messageCenter.postMessage('setAdaptiveViewForSize', {'width':newWidth, 'height':$('#rightPanel').height()});
+                    if(!(getHashStringVar(ADAPTIVE_VIEW_VAR_NAME).length > 0)) $axure.messageCenter.postMessage('setAdaptiveViewForSize', {'width':newWidth, 'height':$('#rightPanel').height()});
                 }
             }
 
             var collapseToBar = $axure.player.collapseToBar = function() {
                 lastLeftPanelWidth = $('#leftPanel').width();
-                $('#leftPanel').width('65px');
+                $('#leftPanel').width('55px');
                 $('.vsplitbar').hide();
                 $('#rightPanel').width($(window).width() - $('#leftPanel').width());
                 $(window).resize();
@@ -267,11 +251,35 @@
             else if(message == 'getCollapseFrameOnLoad' && $axure.player.settings.startCollapsed && !MOBILE_DEVICE) $axure.messageCenter.postMessage('collapseFrameOnLoad');
         }
 
+        
+        function getInitialUrl() {
+            var pageName = getHashStringVar("p");
+            if(pageName.length > 0) return pageName + ".html";
+            else {
+                var url = getFirstPageUrl($axure.document.sitemap.rootNodes);
+                return (url ? url : "about:blank");
+            }
+        }
+
+        function getFirstPageUrl(nodes) {
+            for (var i = 0; i < nodes.length; i++) {
+                var node = nodes[i];
+                if (node.url) return node.url;
+                else {
+                    var hasChildren = (node.children && node.children.length > 0);
+                    if (hasChildren) {
+                        var url = getFirstPageUrl(node.children);
+                        if (url) return url;
+                    }
+                }
+            }
+            return null;
+        }
 
         function closePlayer() {
             if($axure.page.location) window.location.href = $axure.page.location;
             else {
-                var pageFile = $axure.player.getInitialUrl();
+                var pageFile = getInitialUrl();
                 var currentLocation = window.location.toString();
                 window.location.href = currentLocation.substr(0, currentLocation.lastIndexOf("/") + 1) + pageFile;
             }

@@ -196,13 +196,15 @@
                 $("[selectiongroup='" + group + "']").each(function() {
                     var otherId = this.id;
                     if(otherId == id) return;
+                    if ($ax.visibility.isScriptIdLimbo($ax.repeater.getScriptIdFromElementId(otherId))) return;
+
                     $ax.style.SetWidgetSelected(otherId, false);
                 });
             }
         }
-
         var obj = $obj(id);
         if(obj) {
+            var actionId = id;
             if ($ax.public.fn.IsDynamicPanel(obj.type) || $ax.public.fn.IsLayer(obj.type)) {
                 var children = $axure('#' + id).getChildren()[0].children;
                 for(var i = 0; i < children.length; i++) {
@@ -217,23 +219,29 @@
                     } else $axure('#' + childId).selected(value);
                 }
             } else {
-                while(obj.isContained && !_widgetHasState(id, 'selected')) obj = obj.parent;
+                var widgetHasSelectedState = _widgetHasState(id, SELECTED);
+                while(obj.isContained && !widgetHasSelectedState) obj = obj.parent;
                 var itemId = $ax.repeater.getItemIdFromElementId(id);
                 var path = $ax.getPathFromScriptId($ax.repeater.getScriptIdFromElementId(id));
                 path[path.length - 1] = obj.id;
-                id = $ax.getElementIdFromPath(path, { itemNum: itemId });
-                if(alwaysApply || _widgetHasState(id, SELECTED)) {
-                    var state = _generateSelectedState(id, value);
-                    _applyImageAndTextJson(id, state);
-                    _updateElementIdImageStyle(id, state);
+                actionId = $ax.getElementIdFromPath(path, { itemNum: itemId });
+                if(alwaysApply || widgetHasSelectedState) {
+                    var state = _generateSelectedState(actionId, value);
+                    _applyImageAndTextJson(actionId, state);
+                    _updateElementIdImageStyle(actionId, state);
                 }
+                //added actionId and this hacky logic because we set style state on child, but interaction on parent
+                //then the id saved in _selectedWidgets would be depended on widgetHasSelectedState... more see case 1818143
+                while(obj.isContained && !$ax.getObjectFromElementId(id).interactionMap) obj = obj.parent;
+                path = $ax.getPathFromScriptId($ax.repeater.getScriptIdFromElementId(id));
+                path[path.length - 1] = obj.id;
+                actionId = $ax.getElementIdFromPath(path, { itemNum: itemId });
             }
         }
 
         //    ApplyImageAndTextJson(id, value ? 'selected' : 'normal');
         _selectedWidgets[id] = value;
-
-        if(raiseSelectedEvents) $ax.event.raiseSelectedEvents(id, value);
+        if(raiseSelectedEvents) $ax.event.raiseSelectedEvents(actionId, value);
     };
 
     var _generateSelectedState = function(id, selected) {
@@ -262,16 +270,16 @@
         // Right now this is the only style on the widget. If other styles (ex. Rollover), are allowed
         //  on TextBox/TextArea, or Placeholder is applied to more widgets, this may need to do more.
         var obj = $jobj(inputId);
-        obj.attr('style', '');
-        if (!value) {
-            var height = document.getElementById(inputId).style['height'];
-            var width = document.getElementById(inputId).style['width'];
-            obj.attr('style', '');
-            //removing all styles, but now we can change the size, so we should add them back
-            //this is more like a quick hack
-            if(height) obj.css('height', height);
-            if(width) obj.css('width', width);
 
+        var height = document.getElementById(inputId).style['height'];
+        var width = document.getElementById(inputId).style['width'];
+        obj.attr('style', '');
+        //removing all styles, but now we can change the size, so we should add them back
+        //this is more like a quick hack
+        if (height) obj.css('height', height);
+        if (width) obj.css('width', width);
+
+        if(!value) {
             try { //ie8 and below error
                 if(password) document.getElementById(inputId).type = 'password';
             } catch(e) { } 
@@ -676,40 +684,40 @@
 
     var ALL_STATES = ['mouseOver', 'mouseDown', 'selected', 'disabled'];
     var _applyImage = $ax.style.applyImage = function (id, imgUrl, state) {
-
-        var object = $obj(id);
-        if (object.generateCompound) {
-            for (var i = 0; i < object.compoundChildren.length; i++) {
-                var componentId = object.compoundChildren[i];
-                var childId = $ax.public.fn.getComponentId(id, componentId);
-                var childImgQuery = $jobj(childId + '_img');
-                var childQuery = $jobj(childId);
-                childImgQuery.attr('src', imgUrl[componentId]);
-                for (var j = 0; j < ALL_STATES.length; j++) {
-                    childImgQuery.removeClass(ALL_STATES[j]);
-                    childQuery.removeClass(ALL_STATES[j]);
+            var object = $obj(id);
+            if (object.generateCompound) {
+                for (var i = 0; i < object.compoundChildren.length; i++) {
+                    var componentId = object.compoundChildren[i];
+                    var childId = $ax.public.fn.getComponentId(id, componentId);
+                    var childImgQuery = $jobj(childId + '_img');
+                    var childQuery = $jobj(childId);
+                    childImgQuery.attr('src', imgUrl[componentId]);
+                    for (var j = 0; j < ALL_STATES.length; j++) {
+                        childImgQuery.removeClass(ALL_STATES[j]);
+                        childQuery.removeClass(ALL_STATES[j]);
+                    }
+                    if (state != 'normal') {
+                        childImgQuery.addClass(state);
+                        childQuery.addClass(state);
+                    }
+                }
+            } else {
+                var imgQuery = $jobj($ax.style.GetImageIdFromShape(id));
+                var idQuery = $jobj(id);
+                //it is hard to tell if setting the image or the class first causing less flashing when adding shadows.
+                imgQuery.attr('src', imgUrl);
+                for (var i = 0; i < ALL_STATES.length; i++) {
+                    idQuery.removeClass(ALL_STATES[i]);
+                    imgQuery.removeClass(ALL_STATES[i]);
                 }
                 if (state != 'normal') {
-                    childImgQuery.addClass(state);
-                    childQuery.addClass(state);
+                    idQuery.addClass(state);
+                    imgQuery.addClass(state);
                 }
+                if (imgQuery.parents('a.basiclink').length > 0) imgQuery.css('border', 'none');
+                if (imgUrl.indexOf(".png") > -1) $ax.utils.fixPng(imgQuery[0]);
             }
-        } else {
-            var imgQuery = $jobj($ax.style.GetImageIdFromShape(id));
-            var idQuery = $jobj(id);
-            //it is hard to tell if setting the image or the class first causing less flashing when adding shadows.
-            imgQuery.attr('src', imgUrl);
-            for (var i = 0; i < ALL_STATES.length; i++) {
-                idQuery.removeClass(ALL_STATES[i]);
-                imgQuery.removeClass(ALL_STATES[i]);
-            }
-            if (state != 'normal') {
-                idQuery.addClass(state);
-                imgQuery.addClass(state);
-            }
-            if (imgQuery.parents('a.basiclink').length > 0) imgQuery.css('border', 'none');
-            if (imgUrl.indexOf(".png") > -1) $ax.utils.fixPng(imgQuery[0]);
-        }
+
     };
 
     $ax.public.fn.getComponentId = function (id, componentId) {
@@ -838,56 +846,45 @@
 
             isConnector = parentObj.type == $ax.constants.CONNECTOR_TYPE;
         }
-        if(isConnector) return;
+        if (isConnector) return;
 
-        var isCompoundVector = $ax.public.fn.isCompoundVectorHtml(textObjParent[0]);
+        var axTextObjectParent = $ax('#' + textObjParent.attr('id'));
 
         var oldWidth = $ax.getNumFromPx(textObj.css('width'));
         var oldLeft = $ax.getNumFromPx(textObj.css('left'));
         var oldTop = $ax.getNumFromPx(textObj.css('top'));
 
-        var widgetWidth, widgetHeight;
         var newTop = 0;
         var newLeft = 0.0;
 
-        if(isCompoundVector) {
-            var corners = $ax.public.fn.getFourCorners(textObjParent);
-            var horizontal = $ax.public.fn.vectorMinus(corners.widgetTopRight, corners.widgetTopLeft);
-            var vertical = $ax.public.fn.vectorMinus(corners.widgetBottomLeft, corners.widgetTopLeft);
-            widgetWidth = $ax.public.fn.l2(horizontal.x, horizontal.y);
-            widgetHeight = $ax.public.fn.l2(vertical.x, vertical.y);
-            var relativeHorizontal, relativeVertical;
+        var width = axTextObjectParent.width();
+        var height = axTextObjectParent.height();
 
-            if (vAlign == "middle") relativeVertical = _roundToEven((widgetHeight + paddingTop - paddingBottom) / 2.0) / widgetHeight;
-            else if (vAlign == "bottom") relativeVertical = _roundToEven(widgetHeight - paddingBottom - textHeight / 2.0) / widgetHeight;
-            else relativeVertical = _roundToEven(paddingTop + textHeight / 2.0) / widgetHeight;
-            
-            relativeHorizontal = (widgetWidth + paddingLeft - paddingRight) / (2.0 * widgetWidth);
-            newLeft = corners.widgetTopLeft.x + horizontal.x * relativeHorizontal + vertical.x * relativeVertical - oldWidth / 2.0;
-            newTop = corners.widgetTopLeft.y + horizontal.y * relativeHorizontal + vertical.y * relativeVertical - textHeight / 2.0;
-        } else {
-            widgetWidth = textObjParent.width();
-            var relativeTop = 0.0;
-            var height = textObjParent.height();
-            relativeTop = height * topParam;
-            var containerHeight = height * bottomParam - relativeTop;
+        // If text rotated need to handle getting the correct width for text based on bounding rect of rotated parent.
+        var boundingRotation = -$ax.move.getRotationDegree(textId);
+        var boundingParent = $axure.fn.getBoundingSizeForRotate(width, height, boundingRotation);
+        var extraLeftPadding = (width - boundingParent.width) / 2;
+        width = boundingParent.width;
+        var relativeTop = 0.0;
+        relativeTop = height * topParam;
+        var containerHeight = height * bottomParam - relativeTop;
 
-            if (vAlign == "middle") newTop = _roundToEven(relativeTop + (containerHeight - textHeight + paddingTop - paddingBottom) / 2);
-            else if (vAlign == "bottom") newTop = _roundToEven(relativeTop + containerHeight - textHeight - paddingBottom);
-            else newTop = _roundToEven(paddingTop + relativeTop);
+        if (vAlign == "middle") newTop = _roundToEven(relativeTop + (containerHeight - textHeight + paddingTop - paddingBottom) / 2);
+        else if (vAlign == "bottom") newTop = _roundToEven(relativeTop + containerHeight - textHeight - paddingBottom);
+        else newTop = _roundToEven(paddingTop + relativeTop);
 
-            newLeft = paddingLeft + widgetWidth * leftParam;
-        }
-        var newWidth = widgetWidth * (rightParam - leftParam) - paddingLeft - paddingRight;
+        newLeft = paddingLeft + extraLeftPadding + width * leftParam;
+
+        var newWidth = width * (rightParam - leftParam) - paddingLeft - paddingRight;
         var vertChange = oldTop != newTop;
         if (vertChange) textObj.css('top', newTop + 'px');
 
         var horizChange = newWidth != oldWidth || newLeft != oldLeft;
         if (horizChange) {
             textObj.css('left', newLeft);
-            textObj.width('width', newWidth);
+            textObj.width(newWidth);
         }
-        if ((vertChange || horizChange) && !isCompoundVector) _updateTransformOrigin(textId);
+        if ((vertChange || horizChange)) _updateTransformOrigin(textId);
     };
 
     var _updateTransformOrigin = function(textId) {
@@ -907,6 +904,24 @@
             textObj.css('transform-origin', newOrigin);
         }
     };
+
+    $ax.style.reselectElements = function() {
+        for(var id in _selectedWidgets) {
+            // Only looking for the selected widgets that don't have their class set
+            if(!_selectedWidgets[id] || $jobj(id).hasClass('selected')) continue;
+
+            $jobj(id).addClass('selected');
+            _applyImageAndTextJson(id, $ax.style.generateState(id));
+        }
+
+        for(id in _disabledWidgets) {
+            // Only looking for the disabled widgets that don't have their class yet
+            if (!_disabledWidgets[id] || $jobj(id).hasClass('disabled')) continue;
+
+            $jobj(id).addClass('disabled');
+            _applyImageAndTextJson(id, $ax.style.generateState(id));
+        }
+    }
 
     $ax.style.clearAdaptiveStyles = function() {
         for(var shapeId in _adaptiveStyledWidgets) {
@@ -1017,7 +1032,7 @@
         color.g = val % 256;
         val = Math.floor(val / 256);
         color.r = val % 256;
-        color.a = fill.opacity || 1;
+        color.a = typeof (fill.opacity) == 'number' ? fill.opacity : 1;
         return _getCssColor(color);
     };
 

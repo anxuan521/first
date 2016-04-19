@@ -61,6 +61,14 @@
         return $(document.getElementById(id));
     };
 
+    window.$jobjAll = function(id) {
+        return $addAll($jobj(id), id);
+    };
+
+    window.$addAll = function(jobj, id) {
+        return jobj.add($jobj(id + '_ann')).add($jobj(id + '_ref'));
+    };
+
     $ax.INPUT = function(id) { return id + "_input"; };
     $ax.IsImageFocusable = function (type) { return $ax.public.fn.IsImageBox(type) || $ax.public.fn.IsVector(type) || $ax.public.fn.IsTreeNodeObject(type) || $ax.public.fn.IsTableCell(type); };
     $ax.IsTreeNodeObject = function (type) { return $ax.public.fn.IsTreeNodeObject(type); };
@@ -281,9 +289,9 @@
             var isMenu = obj.type == $ax.constants.MENU_OBJECT_TYPE;
             var isTreeNode = obj.type == $ax.constants.TREE_NODE_OBJECT_TYPE;
             var isTable = obj.type == $ax.constants.TABLE_TYPE;
-            var isCompoundVector = obj.type == $ax.constants.VECTOR_SHAPE_TYPE && obj.generateCompound;
+            //var isCompoundVector = obj.type == $ax.constants.VECTOR_SHAPE_TYPE && obj.generateCompound;
 
-            if (isRepeater || isDynamicPanel || isLayer || isMaster || isMenu || isTreeNode || isTable || isCompoundVector) {
+            if (isRepeater || isDynamicPanel || isLayer || isMaster || isMenu || isTreeNode || isTable) {// || isCompoundVector) {
                 // Find parent that children should be pulled from. Default is just the elementId query (used by table and master)
                 var parent = $jobj(elementId);
                 if(isRepeater) {

@@ -32,7 +32,8 @@ $axure.internal(function($ax) {
 
             _setRepeaterDataSet(repeaterId, repeaterId);
             var initialItemIds = obj.repeaterPropMap.itemIds;
-            for(var i = 0; i < initialItemIds.length; i++) $ax.addItemIdToRepeater(initialItemIds[i], repeaterId);
+            for (var i = 0; i < initialItemIds.length; i++) $ax.addItemIdToRepeater(initialItemIds[i], repeaterId);
+            $ax.visibility.initRepeater(repeaterId);
         });
     };
     _repeaterManager.load = _loadRepeaters;
@@ -93,6 +94,8 @@ $axure.internal(function($ax) {
             return;
         }
 
+        // Remove delete map if there is one at this point
+        if(eventInfo && eventInfo.repeaterDeleteMap) delete eventInfo.repeaterDeleteMap[repeaterId];
         var path = $ax.getPathFromScriptId(repeaterId);
         path.pop();
 
@@ -134,6 +137,7 @@ $axure.internal(function($ax) {
             end = bounds[1];
         }
 
+        var preevalMap = {};
         if(itemsPregen) {
             var templateIds = [repeaterId];
             var processScriptIds = function (full, prop, id) {
@@ -143,6 +147,18 @@ $axure.internal(function($ax) {
             for(var i = 0; i < templateIds.length; i++) {
                 for(var j = 0; j < orderedIds.length; j++) {
                     ids.push(_createElementId(templateIds[i], orderedIds[j]));
+                }
+            }
+
+            for(var pos = start; pos < end; pos++) {
+                var itemId = orderedIds[pos];
+                itemElementId = _createElementId(repeaterId, itemId);
+                var jobj = $jobj(itemElementId);
+                var preeval = jobj.hasClass('preeval');
+                for(var i = 0; i < templateIds.length; i++) $ax.initializeObjectEvents($ax('#' + _createElementId(templateIds[i], itemId)), !preeval);
+                if(preeval) {
+                    preevalMap[itemId] = true;
+                    jobj.removeClass('preeval');
                 }
             }
         } else {
@@ -155,6 +171,8 @@ $axure.internal(function($ax) {
 
             var div = $('<div></div>');
             div.html(html);
+            div.find('.' + $ax.visibility.HIDDEN_CLASS).removeClass($ax.visibility.HIDDEN_CLASS);
+            div.find('.' + $ax.visibility.UNPLACED_CLASS).removeClass($ax.visibility.UNPLACED_CLASS);
 
             var paddingTop = _getAdaptiveProp(propMap, 'paddingTop', viewId);
             var paddingLeft = _getAdaptiveProp(propMap, 'paddingLeft', viewId);
@@ -189,7 +207,7 @@ $axure.internal(function($ax) {
             var i = 0;
             var top = paddingTop;
             var left = paddingLeft;
-            for(var pos = start; pos < end; pos++) {
+            for(pos = start; pos < end; pos++) {
                 itemId = orderedIds[pos];
 
                 var itemElementId = _createElementId(repeaterId, itemId);
@@ -246,16 +264,12 @@ $axure.internal(function($ax) {
             repeaterSize.height += borderWidth * 2;
             $jobj(repeaterId).css(repeaterSize);
 
-            for (var i = 0; i < ids.length; i++) $ax.initializeObjectEvents($ax('#' + ids[i]));
+            for(var i = 0; i < ids.length; i++) $ax.initializeObjectEvents($ax('#' + ids[i]), true);
         }
 
-        var query = $ax(function(diagramObject, elementId) {
-            // All objects with the repeater as their parent, except the repeater itself.
-            var scriptId = _getScriptIdFromElementId(elementId);
-            return $ax.getParentRepeaterFromScriptId(scriptId) == repeaterId && scriptId != repeaterId;
-        });
+        var query = _getItemQuery(repeaterId);
         if(viewId) $ax.adaptive.applyView(viewId, query);
-        else $ax.visibility.resetLimboAndHiddenToDefaults(query);
+        else $ax.visibility.resetLimboAndHiddenToDefaults(_getItemQuery(repeaterId, preevalMap));
 //        else {
 //            var limbo = {};
 //            var hidden = {};
@@ -298,13 +312,9 @@ $axure.internal(function($ax) {
 
         // Now load
         for(pos = start; pos < end; pos++) {
-            var itemId = orderedIds[pos];
+            itemId = orderedIds[pos];
             itemElementId = _createElementId(repeaterId, itemId);
-            var jobj = $jobj(itemElementId);
-            var preeval = jobj.hasClass('preeval');
-            jobj.removeClass('preeval');
-
-            if(!preeval) $ax.event.raiseSyntheticEvent(itemElementId, 'onItemLoad', true);
+            if(!preevalMap[orderedIds[pos]]) $ax.event.raiseSyntheticEvent(itemElementId, 'onItemLoad', true);
             $ax.loadDynamicPanelsAndMasters(obj.objects, path, itemId);
         }
 
@@ -317,6 +327,22 @@ $axure.internal(function($ax) {
         $ax.action.refreshEnd();
     };
     _repeaterManager.refreshRepeater = _refreshRepeater;
+
+    var _getItemQuery = function(repeaterId, preevalMap) {
+        var query = $ax(function (diagramObject, elementId) {
+            // Also need to check that this in not preeval
+            if(preevalMap) {
+                var itemId = _getItemIdFromElementId(elementId);
+                if(preevalMap[itemId]) return false;
+            }
+
+            // All objects with the repeater as their parent, except the repeater itself.
+            var scriptId = _getScriptIdFromElementId(elementId);
+            return $ax.getParentRepeaterFromScriptId(scriptId) == repeaterId && scriptId != repeaterId;
+        });
+
+        return query;
+    }
 
     _repeaterManager.refreshAllRepeaters = function() {
         $ax('*').each(function(diagramObject, elementId) {
@@ -1426,7 +1452,7 @@ $axure.internal(function($ax) {
             var parentPanelInfo = getParentPanel(elementId);
             if(parentPanelInfo) {
                 var parentId = parentPanelInfo.parent;
-                width = $jobj(parentId).width();
+                width = $ax('#' + parentId).width();
                 var parentObj = $obj(parentId);
                 if(parentObj.percentWidth) {
                     var stateId = $ax.repeater.applySuffixToElementId(parentId, '_state' + parentPanelInfo.state);
@@ -1439,7 +1465,7 @@ $axure.internal(function($ax) {
                     var itemId = $ax.repeater.getItemIdFromElementId(elementId);
                     var itemContainerId = $ax.repeater.createElementId(parentRepeater, itemId);
                     x = 0;
-                    width = $jobj(itemContainerId).width();
+                    width = $ax('#' + itemContainerId).width();
                 } else {
                     var $window = $(window);
                     width = $window.width();
@@ -1535,25 +1561,28 @@ $axure.internal(function($ax) {
         }
     };
 
-    var _getShownState = _dynamicPanelManager.getShownState = function(id) {
+    var _getShownStateId = function (id) {
         var obj = $obj(id);
-        if (!obj || !$ax.public.fn.IsDynamicPanel(obj.type)) return $jobj(id);
+        if (!obj || !$ax.public.fn.IsDynamicPanel(obj.type)) return id;
 
         var children = $ax.visibility.applyWidgetContainer(id, true).children();
-        for(var i = 0; i < children.length; i++) {
+        for (var i = 0; i < children.length; i++) {
             var child = children[i];
-            while($ax.visibility.isContainer(child.id)) child = $(child).children()[0];
-            if(child && child.style && child.style.display != 'none') return $(child);
+            while ($ax.visibility.isContainer(child.id)) child = $(child).children()[0];
+            if (child && child.style && child.style.display != 'none') return child.id;
         }
-
-        return $jobj(id);
+        return id;
     };
+
+    var _getShownStateObj = function(id) { return $ax('#' + _getShownStateId(id));}
+
+    _dynamicPanelManager.getShownState = function (id) { return $jobj(_getShownStateId(id)); };
 
     var _getClamp = function(id) {
         var obj = $obj(id);
-        if(!obj) return $jobj(id);
-        if ($ax.public.fn.IsDynamicPanel(obj.type)) return _getShownState(id);
-        return $jobj(id);
+        if(!obj) return $ax('#' + id);
+        if ($ax.public.fn.IsDynamicPanel(obj.type)) return _getShownStateObj(id);
+        return $ax('#' + id);
     };
 
     var _updateFitPanel = function(panelId, stateIndex, initializingView) {
@@ -1638,7 +1667,7 @@ $axure.internal(function($ax) {
         for(var i = 0; i < children.length; i++) {
             var child = $(children[i]);
             var childId = child.attr('id');
-            var axChild = $ax('#' + childId);
+            //var axChild = $ax('#' + childId).width();
 
             var childObj = $obj(childId);
             if(!childObj) {
@@ -1654,19 +1683,13 @@ $axure.internal(function($ax) {
             }
 
             // Ignore fixed
-            if(!childId || $ax.visibility.limboIds[childId] || !$ax.visibility.IsIdVisible(childId)) continue;
+            if(!childId || $ax.visibility.limboIds[childId] || !$ax.visibility.IsIdVisible(childId)
+                || $ax.public.fn.IsDynamicPanel(childObj.type) && childObj.fixedHorizontal) continue;
 
-            if($ax.public.fn.isCompoundVectorHtml(document.getElementById(childId))) {
-                var position = { left: axChild.left(true), top: axChild.top(true) };
-                //Default width and height (adjusted for widgets that are special)
-                var width = axChild.width();
-                var height = axChild.height();
-            } else {
-                var boundingRect = $ax.public.fn.getWidgetBoundingRect(childId);
-                position = { left: boundingRect.left, top: boundingRect.top };
-                width = boundingRect.width;
-                height = boundingRect.height;
-            }
+            var boundingRect = $ax.public.fn.getWidgetBoundingRect(childId);
+            var position = { left: boundingRect.left, top: boundingRect.top };
+            var width = boundingRect.width;
+            var height = boundingRect.height;
 
             if($ax.public.fn.IsMaster(childObj.type)) {
                 var masterSize = getContainerSize(childId);
@@ -1753,14 +1776,8 @@ $axure.internal(function($ax) {
         var threshold;
         var delta;
 
-        if($obj(id).generateCompound) {
-            var dimensions = $ax.public.fn.compoundWidgetDimensions($jobj(id));
-            threshold = dimensions[locProp];
-            delta = dimensions[dimProp];
-        } else {
-            threshold = $ax('#' + id)[locProp](true);
-            delta = layer ? $ax('#' + id)[dimProp]() : _getShownState(id)[dimProp]();
-        }
+        threshold = $ax('#' + id)[locProp](true);
+        delta = layer ? $ax('#' + id)[dimProp]() : _getShownStateObj(id)[dimProp]();
 
         if(!show) {
             // Need to make threshold bottom/right
@@ -1803,12 +1820,6 @@ $axure.internal(function($ax) {
         if($ax.getTypeFromElementId(id) == $ax.constants.LAYER_TYPE) {
             clamp.start = $ax('#' + id)[clamp.prop](true);
             clamp.end = clamp.start + $ax('#' + id)[clamp.offset]();
-        } else if($obj(id).generateCompound) {
-            var dimensions = $ax.public.fn.compoundWidgetDimensions($jobj(id));
-            if(typeof clampWidth == 'undefined') clampWidth = dimensions[clamp.offset];
-
-            clamp.start = dimensions[clamp.prop];
-            clamp.end = clamp.start + clampWidth;
         } else {
             var clampLoc = $jobj(id);
             if(typeof clampWidth == 'undefined') clampWidth = _getClamp(id)[clamp.offset]();
@@ -1936,34 +1947,20 @@ $axure.internal(function($ax) {
 
             var marker, childClamp;
 
-            if($ax.public.fn.isCompoundVectorHtml(child[0])) {
-                var dimension = $ax.public.fn.compoundWidgetDimensions(child);
-                var right = dimension.left + dimension.width;
-                var bottom = dimension.top + dimension.height;
-
-                if(vert) {
-                    marker = dimension.top;
-                    childClamp = [dimension.left, right];
-                } else {
-                    marker = dimension.left;
-                    childClamp = [dimension.top, bottom];
-                }
-            } else {
-                var axChild = $ax('#' + childId);
-                var markerProp = vert ? 'top' : 'left';
-                marker = Number(axChild[markerProp](true));
-                childClamp = [Number(axChild[clamp.prop](true))];
-                // Dynamic panels are not reporting correct size sometimes, so pull it from the state. Get shown state just returns the widget if it is not a dynamic panel.
-                var sizeChild = _getShownState(childId);
-                childClamp[1] = childClamp[0] + sizeChild[clamp.offset]();
-            }
+            var axChild = $ax('#' + childId);
+            var markerProp = vert ? 'top' : 'left';
+            marker = Number(axChild[markerProp](true));
+            childClamp = [Number(axChild[clamp.prop](true))];
+            // Dynamic panels are not reporting correct size sometimes, so pull it from the state. Get shown state just returns the widget if it is not a dynamic panel.
+            var sizeChild = _getShownStateObj(childId);
+            childClamp[1] = childClamp[0] + sizeChild[clamp.offset]();
 
             if(isNaN(marker) || isNaN(childClamp[0]) || isNaN(childClamp[1]) ||
                 marker < threshold || childClamp[1] <= clamp.start || childClamp[0] >= clamp.end) {
                 allMove = false;
                 continue;
             }
-
+             
             if (allMove && parentLayer) {
                 //should i nopmove here?
                 //$ax.move.nopMove(childId);
